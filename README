@@ -1,0 +1,30 @@
+		User-space NFS Client
+		=====================
+
+Introduction
+------------
+
+unfsclient is a FUSE-based user-space NFS client that aims at
+higher scalability and performance than the in-kernel client stack.
+Most would disagree with this notion but to disprove such a notion is
+the goal of unfsclient project. It aims to achieve higher scalability
+and performance through intelligent, efficient and aggressive algorithms
+to beat the I/O bottleneck of being in the user-space. It also aims to
+be extensible and flexible to allow experimentation with a range of
+algorithms for data and meta-data caching, I/O and network connection
+management, locking and concurrency for file systems in user-space,
+etc. One of the benefits of being in user-space is to allow
+experimentation with various types of policies, to that end,
+unfsclient will attempt to provide configurable subsystems.
+
+As of this writing, the work is not complete yet. The main components
+ready for testing are:
+1. Async RPC library.
+2. NFSv3 client operations library.
+
+
+The project does not have a web page at this time so please consider
+these files and the sources as the first point of information.
+For more details contact me at:
+shehjart AT gelato DOT unsw DOT edu DOT au
+

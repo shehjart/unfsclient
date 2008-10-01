@@ -1,0 +1,3 @@
+Import('libnfs_env')
+nfs3 = libnfs_env.Object(['nfs3.c' , 'nfs3_xdr.c', 'mount3.c', 'nfs3stat.c'])
+Return('nfs3')

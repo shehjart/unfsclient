@@ -1,0 +1,3 @@
+Import('test_env')
+Import('libnfsclient')
+test_env.Program('clnt_call_mnt', ['clnt_call_mnt.c', libnfsclient])

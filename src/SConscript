@@ -1,0 +1,6 @@
+Import('libnfs_env')
+nfs3 = SConscript('nfsv3/SConscript', exports = ['libnfs_env'])
+libnfsclient = libnfs_env.Library('nfsclient', ['clnt_tcp_nb.c',
+'hash_functions.c',  'hash_table.c',  'nfsclient.c', 'tickrate.c',
+nfs3])
+Return('libnfsclient')
