@@ -24,6 +24,11 @@ libnfsclient = SConscript('src/SConscript', exports = ['libnfs_env'])
 #Test code environment
 test_env = env.Copy()
 test_env.Append(CPPPATH = INCLUDE)
+nomeasurements = ARGUMENTS.get("nomeasurement", 0)
+
+if int(nomeasurements):
+	test_env.Append(CCFLAGS = '-D__NO_MEASUREMENTS__')
+
 SConscript('tests/SConscript', exports = ['test_env', 'libnfsclient'])
 
 Default(None)

@@ -447,7 +447,8 @@ clnttcp_nb_create(struct sockaddr_in *raddr, u_long prog,
 
 
 enum clnt_stat 
-clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc, struct callback_info ucbi)
+clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc, struct callback_info ucbi,
+		int64_t callflag)
 {
 	struct ct_data *ct = NULL;
 	u_int32_t *xid, xid_host;
@@ -490,7 +491,9 @@ clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc, struct callback_info u
 	}
 
 	++ct->ct_pendingcalls;
-	clnttcp_nb_receive(handle, RPC_NONBLOCK_WAIT);
+	if(callflag == RPC_DEFAULT_FLAGS)
+		callflag = ct->ct_sockflags;
+	clnttcp_nb_receive(handle, callflag);
 	return RPC_SUCCESS;
 }
 

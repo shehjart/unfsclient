@@ -1,6 +1,6 @@
 /*
  * 
- * Tool for measuring the raw capacity of a NFS server
+ * Tool for measuring the minimal latency of a NFS server
  * by using the NFSv3 NULL request.
  *
  *    Copyright (C) 2008 Shehjar Tikoo, <shehjart@gelato.unsw.edu.au>
@@ -35,7 +35,6 @@
 #include <inttypes.h>
 #include <nfsclient.h>
 #include <stdlib.h>
-#include <nfsstat.h>
 #include <tickrate.h>
 
 
@@ -50,20 +49,27 @@ struct test_state {
 
 };
 
+struct rtdata {
+	int req_id;
+	int64_t callticks;
+	int64_t replyticks;
+};
 
 void 
 nfs_null_cb(void *m, int len, void *p)
 {
+#ifndef __NO_MEASUREMENTS__
+	struct rtdata * rt = (struct rtdata *)p;
+	rt->replyticks = tick_count();
+#endif
 }
-
-
 
 void
 usage()
 {
 	fprintf(stderr, "Not enough arguments\nThis tests the "
-			"asynchronous libnfsclient NFS NULL call"
-			"interface and callback\n"
+			"asynchronous libnfsclient NFSv3 NULL call"
+			"interface and callback.\n"
 			"USAGE: nulltest <OPTIONS>\n");
 
 	fprintf(stderr, "\n\tOPTIONS\n");
@@ -74,15 +80,51 @@ usage()
 	
 }
 
+void
+process_rtdata(struct test_state ts, struct rtdata * rttable)
+{
+	int i;
+	struct rtdata * rt;
+	double call_usecs, reply_usecs, totalrestime, trate = ts.ts_tickrate;
+	call_usecs = reply_usecs = totalrestime = 0.0;
 
+	for(i = 1; i < ts.ts_totalcalls; i++) {
+		rt = &rttable[i];
+		call_usecs = ticks_to_usecs_typed(rt->callticks, trate, double);
+		reply_usecs = ticks_to_usecs_typed(rt->replyticks, trate, double);
+		fprintf(stdout, "%d %lf\n", rt->req_id, (reply_usecs - call_usecs));
+		totalrestime += (reply_usecs - call_usecs);
+	}
+
+	fprintf(stdout, "AvgRT: %lf usecs\n",
+			(double)(totalrestime/(double)ts.ts_totalcalls));
+}
 
 void
 runtest(struct test_state ts)
 {
+	int i;
+	struct rtdata * rt = NULL;
+#ifndef __NO_MEASUREMENTS__
+	struct rtdata * rttable;
 
-	fprintf(stderr, "NULL TEST IS NOT YET IMPLEMENTED.\n");
-	exit(-1);
-	
+	rttable = (struct rtdata *)malloc(sizeof(struct rtdata) * ts.ts_totalcalls);
+	memset(rttable, 0, sizeof(struct rtdata) * ts.ts_totalcalls);
+#endif
+
+	for(i = 0; i < ts.ts_totalcalls; i++) {
+#ifndef __NO_MEASUREMENTS__
+		rt = &rttable[i];
+		rt->req_id = i;
+		rt->callticks = tick_count();
+#endif
+		nfs3_null(ts.ts_ctx, nfs_null_cb, rt, RPC_BLOCKING_WAIT);
+	}
+
+#ifndef __NO_MEASUREMENTS__
+	process_rtdata(ts, rttable);
+#endif
+
 }
 
 
@@ -140,14 +182,16 @@ main(int argc, char *argv[])
 		return -1;
 	}
 
+#ifndef __NO_MEASUREMENTS__
 	fprintf(stdout, "Calibrating tick rate..\n");
 	ts.ts_tickrate = calibrate_tickrate(TICKRATE_CALIB_RUNS);
 	fprintf(stdout, "Tick rate: %lf ticks per usec\n", ts.ts_tickrate);
+#endif
 
 	ts.ts_totalcalls = totalcalls;
 	ts.ts_srv = srv_addr;
-	ts.ts_ctx = nfs_init((struct sockaddr_in *)srv_addr->ai_addr, 
-			IPPROTO_TCP, NFSC_CFL_NONBLOCKING);
+	ts.ts_ctx = nfs_init((struct sockaddr_in *)srv_addr->ai_addr, IPPROTO_TCP,
+			NFSC_CFL_NONBLOCKING);
 
 	if(ts.ts_ctx == NULL) {
 		fprintf(stderr, "Cannot init nfs context\n");

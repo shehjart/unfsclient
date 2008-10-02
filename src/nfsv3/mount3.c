@@ -38,8 +38,8 @@
 
 /* Common internal interface to MOUNT protocol */
 static enum clnt_stat
-mount3_call(int proc, void *arg, xdrproc_t xdr_proc,
-		nfs_ctx *ctx, user_cb u_cb, void * priv)
+mount3_call(int proc, void *arg, xdrproc_t xdr_proc, nfs_ctx *ctx, user_cb u_cb,
+		void * priv, int64_t callflag)
 {
 	int sockp = RPC_ANYSOCK;
 	enum clnt_stat call_stat;
@@ -50,9 +50,8 @@ mount3_call(int proc, void *arg, xdrproc_t xdr_proc,
 		return RPC_SYSTEMERROR;
 
 	if(ctx->nfs_mnt_cl == NULL)
-		ctx->nfs_mnt_cl = clnttcp_b_create(ctx->nfs_mnt,
-				MOUNT_PROGRAM, MOUNT_V3, &sockp,
-				0, 0);
+		ctx->nfs_mnt_cl = clnttcp_nb_create(ctx->nfs_mnt, MOUNT_PROGRAM, 
+				MOUNT_V3, &sockp, 0, 0);
 
 	if(ctx->nfs_mnt_cl == NULL)
 		return RPC_SYSTEMERROR;
@@ -62,57 +61,57 @@ mount3_call(int proc, void *arg, xdrproc_t xdr_proc,
 	rpc.proc = proc;
 	rpc.inproc = xdr_proc;
 	rpc.inargs = (caddr_t)arg;
-	call_stat = clnttcp_nb_call(ctx->nfs_mnt_cl, rpc, cbi);
+	call_stat = clnttcp_nb_call(ctx->nfs_mnt_cl, rpc, cbi, callflag);
 
 	return call_stat;
 }
 
 
 enum clnt_stat
-mount3_mnt(dirpath *dirp, nfs_ctx *ctx, user_cb u_cb, void * priv)
+mount3_mnt(dirpath *dirp, nfs_ctx *ctx, user_cb u_cb, void * priv, int64_t callflag)
 {
-	return	mount3_call(MOUNT3_MNT, (caddr_t)dirp,
-			(xdrproc_t)xdr_dirpath, ctx, u_cb, priv);
+	return	mount3_call(MOUNT3_MNT, (caddr_t)dirp, (xdrproc_t)xdr_dirpath, ctx,
+			u_cb, priv, callflag);
 
 }
 
 
 enum clnt_stat
-mount3_null(nfs_ctx *ctx, user_cb u_cb, void * priv)
+mount3_null(nfs_ctx *ctx, user_cb u_cb, void * priv, int64_t callflag)
 {
-	return mount3_call(MOUNT3_NULL, NULL, (xdrproc_t)xdr_void,
-			ctx, u_cb, priv);
+	return mount3_call(MOUNT3_NULL, NULL, (xdrproc_t)xdr_void, ctx, u_cb, priv,
+			callflag);
 }
 
 
 enum clnt_stat 
-mount3_dump(nfs_ctx *ctx, user_cb u_cb, void * priv)
+mount3_dump(nfs_ctx *ctx, user_cb u_cb, void * priv, int64_t callflag)
 {
-	return mount3_call(MOUNT3_DUMP, NULL, (xdrproc_t)xdr_void,
-			ctx, u_cb, priv);
+	return mount3_call(MOUNT3_DUMP, NULL, (xdrproc_t)xdr_void, ctx, u_cb, priv,
+			callflag);
 }
 
 
 enum clnt_stat 
-mount3_umnt(dirpath *dirp, nfs_ctx *ctx, user_cb u_cb, void * priv)
+mount3_umnt(dirpath *dirp, nfs_ctx *ctx, user_cb u_cb, void * priv, int64_t callflag)
 {
-	return mount3_call(MOUNT3_UMNT, (caddr_t)dirp, 
-			(xdrproc_t)xdr_dirpath, ctx, u_cb, priv);
+	return mount3_call(MOUNT3_UMNT, (caddr_t)dirp, (xdrproc_t)xdr_dirpath, ctx,
+			u_cb, priv, callflag);
 }
 
 
 enum clnt_stat 
-mount3_umntall(nfs_ctx *ctx, user_cb u_cb, void * priv)
+mount3_umntall(nfs_ctx *ctx, user_cb u_cb, void * priv, int64_t callflag)
 {
-	return mount3_call(MOUNT3_UMNTALL, NULL, (xdrproc_t)xdr_void,
-			ctx, u_cb, priv);
+	return mount3_call(MOUNT3_UMNTALL, NULL, (xdrproc_t)xdr_void, ctx, u_cb,
+			priv, callflag);
 }
 
 enum clnt_stat 
-mount3_export(nfs_ctx *ctx, user_cb u_cb, void * priv)
+mount3_export(nfs_ctx *ctx, user_cb u_cb, void * priv, int64_t callflag)
 {
-	return mount3_call(MOUNT3_EXPORT, NULL, (xdrproc_t)xdr_void,
-			ctx, u_cb, priv);
+	return mount3_call(MOUNT3_EXPORT, NULL, (xdrproc_t)xdr_void, ctx, u_cb,
+			priv, callflag);
 }
 
 

@@ -90,6 +90,8 @@ typedef void (*user_cb)(void *msg_buf, int bufsz, void *priv);
  */
 #define RPC_NO_RX 0x4
 
+#define RPC_DEFAULT_FLAGS -1
+
 #define expect_new_rpc_record(rs) do {				\
 		(rs)->rs_fh_remaining = RPC_RECORD_HEADER;	\
 		(rs)->rs_frag_remaining = EXPECT_NEW_FRAG;	\
@@ -127,7 +129,7 @@ extern CLIENT * clnttcp_b_create(struct sockaddr_in *raddr, u_long prog,
 		u_long vers, int *sockp, u_int sbufsz, u_int rbufsz);
 
 extern enum clnt_stat clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc,
-		struct callback_info ucbi);
+		struct callback_info ucbi, int64_t callflag);
    
 extern int clnttcp_nb_receive(CLIENT * handle, int flag);
 extern unsigned long clnttcp_datatx(CLIENT * handle);

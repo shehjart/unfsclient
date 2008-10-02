@@ -43,4 +43,6 @@ extern u_int64_t tick_count();
 
 #define ticks_to_usecs(ticks, tickrate) ((u_int64_t)(ticks / tickrate))
 
+#define ticks_to_usecs_typed(ticks, tickrate, type) ((type)(ticks / (type)tickrate))
+
 #endif

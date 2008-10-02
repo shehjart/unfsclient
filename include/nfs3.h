@@ -1060,37 +1060,57 @@ typedef struct exportnode exportnode;
 #define MOUNT3_EXPORT 5
 
 
-extern enum clnt_stat nfs3_null(nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_getattr(GETATTR3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_setattr(SETATTR3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_lookup(LOOKUP3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_access(ACCESS3args *, nfs_ctx *, user_cb, void * priv);
+extern enum clnt_stat nfs3_null(nfs_ctx *, user_cb, void * priv, int64_t );
+extern enum clnt_stat nfs3_getattr(GETATTR3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_setattr(SETATTR3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_lookup(LOOKUP3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_access(ACCESS3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
 extern enum clnt_stat nfs3_readlink(READLINK3args *, nfs_ctx *, user_cb,
-		void * priv);
-extern enum clnt_stat nfs3_read(READ3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_write(WRITE3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_create(CREATE3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_mkdir(MKDIR3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_symlink(SYMLINK3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_mknod(MKNOD3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_remove(REMOVE3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_rmdir(RMDIR3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_rename(RENAME3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_link(LINK3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_readdir(READDIR3args *, nfs_ctx *, user_cb, void * priv);
+		void * priv, int64_t);
+extern enum clnt_stat nfs3_read(READ3args *, nfs_ctx *, user_cb, void * priv, 
+		int64_t);
+extern enum clnt_stat nfs3_write(WRITE3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_create(CREATE3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_mkdir(MKDIR3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_symlink(SYMLINK3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_mknod(MKNOD3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_remove(REMOVE3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_rmdir(RMDIR3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_rename(RENAME3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_link(LINK3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_readdir(READDIR3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
 extern enum clnt_stat nfs3_readdirplus(READDIRPLUS3args *, nfs_ctx *, user_cb,
-		void * priv);
-extern enum clnt_stat nfs3_fsstat(FSSTAT3args *, nfs_ctx *, user_cb, void * priv);
-extern enum clnt_stat nfs3_fsinfo(FSINFOargs *, nfs_ctx *, user_cb, void * priv);
+		void * priv, int64_t);
+extern enum clnt_stat nfs3_fsstat(FSSTAT3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern enum clnt_stat nfs3_fsinfo(FSINFOargs *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
 extern enum clnt_stat nfs3_pathconf(PATHCONF3args *, nfs_ctx *, user_cb,
-		void * priv);
-extern enum clnt_stat nfs3_commit(COMMIT3args *, nfs_ctx *, user_cb, void * priv);
-extern  enum clnt_stat mount3_null(nfs_ctx *, user_cb, void * priv);
-extern  enum clnt_stat mount3_mnt(dirpath *, nfs_ctx *, user_cb, void * priv);
-extern  enum clnt_stat mount3_dump(nfs_ctx *, user_cb, void * priv);
-extern  enum clnt_stat mount3_umnt(dirpath *, nfs_ctx *, user_cb, void * priv);
-extern  enum clnt_stat mount3_umntall(nfs_ctx *, user_cb, void * priv);
-extern  enum clnt_stat mount3_export(nfs_ctx *, user_cb, void * priv);
+		void * priv, int64_t);
+extern enum clnt_stat nfs3_commit(COMMIT3args *, nfs_ctx *, user_cb, void * priv,
+		int64_t);
+extern  enum clnt_stat mount3_null(nfs_ctx *, user_cb, void * priv, int64_t);
+extern  enum clnt_stat mount3_mnt(dirpath *, nfs_ctx *, user_cb, void * priv, 
+		int64_t);
+extern  enum clnt_stat mount3_dump(nfs_ctx *, user_cb, void * priv, int64_t);
+extern  enum clnt_stat mount3_umnt(dirpath *, nfs_ctx *, user_cb, void * priv, 
+		int64_t);
+extern  enum clnt_stat mount3_umntall(nfs_ctx *, user_cb, void * priv, int64_t);
+extern  enum clnt_stat mount3_export(nfs_ctx *, user_cb, void * priv, int64_t);
 extern int mount_program_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 

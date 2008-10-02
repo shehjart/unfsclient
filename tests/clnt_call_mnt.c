@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	rpc.inproc = (xdrproc_t)xdr_dirpath;
 	rpc.inargs = (caddr_t)&argv[2];
 	fprintf(stdout, "Sending mount call\n");
-	stat = clnttcp_nb_call(cl, rpc, ucbi);
+	stat = clnttcp_nb_call(cl, rpc, ucbi, RPC_DEFAULT_FLAGS);
 
 	if(stat == RPC_SUCCESS)
 		fprintf(stderr, "Mount call sent with success\n");

@@ -113,8 +113,8 @@ nfsstat3_strerror(int stat)
 
 
 static enum clnt_stat
-nfs3_call(int proc, void *arg, xdrproc_t xdr_proc,
-		nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_call(int proc, void *arg, xdrproc_t xdr_proc, nfs_ctx *ctx, user_cb u_cb,
+		void * priv, int64_t callflag)
 {
 	int sockp = RPC_ANYSOCK;
 	int flag = 1;
@@ -147,178 +147,199 @@ nfs3_call(int proc, void *arg, xdrproc_t xdr_proc,
 	rpc.proc = proc;
 	rpc.inproc = xdr_proc;
 	rpc.inargs = (caddr_t)arg;
-	return clnttcp_nb_call(ctx->nfs_cl, rpc, cbi);
+	return clnttcp_nb_call(ctx->nfs_cl, rpc, cbi, callflag);
 
 }
 
 
 enum clnt_stat 
-nfs3_null(nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_null(nfs_ctx *ctx, user_cb u_cb, void * priv, int64_t callflag)
 {
-	return nfs3_call(NFS3_NULL, NULL, (xdrproc_t)xdr_void,
-			ctx, u_cb, priv);
+	return nfs3_call(NFS3_NULL, NULL, (xdrproc_t)xdr_void, ctx, u_cb, priv,
+			callflag);
 }
 
 
 enum clnt_stat 
-nfs3_lookup(LOOKUP3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_lookup(LOOKUP3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_LOOKUP, args, (xdrproc_t)xdr_LOOKUP3args,
-			ctx, u_cb, priv);
+	return nfs3_call(NFS3_LOOKUP, args, (xdrproc_t)xdr_LOOKUP3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_getattr(GETATTR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_getattr(GETATTR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_GETATTR, args,
-			(xdrproc_t)xdr_GETATTR3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_GETATTR, args, (xdrproc_t)xdr_GETATTR3args, ctx,
+			u_cb, priv, callflag);
 }
 //#define NFS3_SETATTR 2
 enum clnt_stat 
-nfs3_setattr(SETATTR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_setattr(SETATTR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_SETATTR, args,
-			(xdrproc_t)xdr_SETATTR3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_SETATTR, args, (xdrproc_t)xdr_SETATTR3args, ctx,
+			u_cb, priv, callflag);
 }
 
 enum clnt_stat 
-nfs3_access(ACCESS3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_access(ACCESS3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_ACCESS, args,
-			(xdrproc_t)xdr_ACCESS3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_ACCESS, args, (xdrproc_t)xdr_ACCESS3args, ctx, u_cb,
+			priv, callflag);
 }
 
 enum clnt_stat 
-nfs3_readlink(READLINK3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_readlink(READLINK3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_READLINK, args,
-			(xdrproc_t)xdr_READLINK3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_READLINK, args, (xdrproc_t)xdr_READLINK3args, ctx,
+			u_cb, priv, callflag);
 }
 
 enum clnt_stat 
-nfs3_read(READ3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_read(READ3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_READ, args, 
-			(xdrproc_t)xdr_READ3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_READ, args, (xdrproc_t)xdr_READ3args, ctx, u_cb, 
+			priv, callflag);
 }
 
 enum clnt_stat 
-nfs3_write(WRITE3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_write(WRITE3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_WRITE, args,
-			(xdrproc_t)xdr_WRITE3args, ctx, u_cb, priv);
-}
-
-
-enum clnt_stat 
-nfs3_create(CREATE3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
-{
-	return nfs3_call(NFS3_CREATE, args,
-			(xdrproc_t)xdr_CREATE3args, ctx, u_cb, priv);
-}
-
-enum clnt_stat 
-nfs3_mkdir(MKDIR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
-{
-	return nfs3_call(NFS3_MKDIR, args,
-			(xdrproc_t)xdr_MKDIR3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_WRITE, args, (xdrproc_t)xdr_WRITE3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_symlink(SYMLINK3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_create(CREATE3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_SYMLINK, args,
-			(xdrproc_t)xdr_SYMLINK3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_CREATE, args, (xdrproc_t)xdr_CREATE3args, ctx, u_cb,
+			priv, callflag);
+}
+
+enum clnt_stat 
+nfs3_mkdir(MKDIR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
+{
+	return nfs3_call(NFS3_MKDIR, args, (xdrproc_t)xdr_MKDIR3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_rename(RENAME3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_symlink(SYMLINK3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_RENAME, args,
-			(xdrproc_t)xdr_RENAME3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_SYMLINK, args, (xdrproc_t)xdr_SYMLINK3args, ctx,
+			u_cb, priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_mknod(MKNOD3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_rename(RENAME3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_MKNOD, args, 
-			(xdrproc_t)xdr_MKNOD3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_RENAME, args, (xdrproc_t)xdr_RENAME3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_remove(REMOVE3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_mknod(MKNOD3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_REMOVE, args,
-			(xdrproc_t)xdr_REMOVE3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_MKNOD, args, (xdrproc_t)xdr_MKNOD3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_rmdir(RMDIR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_remove(REMOVE3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_RMDIR, args,
-			(xdrproc_t)xdr_RMDIR3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_REMOVE, args, (xdrproc_t)xdr_REMOVE3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_link(LINK3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_rmdir(RMDIR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_LINK, args,
-			(xdrproc_t)xdr_LINK3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_RMDIR, args, (xdrproc_t)xdr_RMDIR3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_readdir(READDIR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_link(LINK3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_READDIR, args,
-			(xdrproc_t)xdr_READDIR3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_LINK, args, (xdrproc_t)xdr_LINK3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_fsstat(FSSTAT3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_readdir(READDIR3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_FSSTAT, args,
-			(xdrproc_t)xdr_FSSTAT3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_READDIR, args, (xdrproc_t)xdr_READDIR3args, ctx, 
+			u_cb, priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_readdirplus(READDIRPLUS3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_fsstat(FSSTAT3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_READDIRPLUS, args,
-			(xdrproc_t)xdr_READDIRPLUS3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_FSSTAT, args, (xdrproc_t)xdr_FSSTAT3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_fsinfo(FSINFOargs *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_readdirplus(READDIRPLUS3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_FSINFO, args,
-			(xdrproc_t)xdr_FSINFOargs, ctx, u_cb, priv);
+	return nfs3_call(NFS3_READDIRPLUS, args, (xdrproc_t)xdr_READDIRPLUS3args, 
+			ctx, u_cb, priv, callflag);
 }
 
 
 enum clnt_stat 
-nfs3_pathconf(PATHCONF3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv)
+nfs3_fsinfo(FSINFOargs *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_PATHCONF, args,
-			(xdrproc_t)xdr_PATHCONF3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_FSINFO, args, (xdrproc_t)xdr_FSINFOargs, ctx, u_cb,
+			priv, callflag);
 }
 
 
-enum clnt_stat nfs3_commit(COMMIT3args *args, nfs_ctx *ctx,
-		user_cb u_cb, void * priv)
+enum clnt_stat 
+nfs3_pathconf(PATHCONF3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv,
+		int64_t callflag)
 {
-	return nfs3_call(NFS3_COMMIT, args,
-			(xdrproc_t)xdr_COMMIT3args, ctx, u_cb, priv);
+	return nfs3_call(NFS3_PATHCONF, args, (xdrproc_t)xdr_PATHCONF3args, ctx,
+			u_cb, priv, callflag);
+}
+
+
+enum clnt_stat 
+nfs3_commit(COMMIT3args *args, nfs_ctx *ctx, user_cb u_cb, void * priv, 
+		int64_t callflag)
+{
+	return nfs3_call(NFS3_COMMIT, args, (xdrproc_t)xdr_COMMIT3args, ctx, u_cb,
+			priv, callflag);
 }
 
 
