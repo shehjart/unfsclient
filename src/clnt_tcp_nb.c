@@ -177,10 +177,6 @@ struct rpc_record_state {
 
 };
 
-struct callback_info {
-	user_cb callback;
-	void * cb_private;
-};
 
 /* Socket specific data */
 struct ct_data
@@ -451,9 +447,8 @@ clnttcp_nb_create(struct sockaddr_in *raddr, u_long prog,
 
 
 enum clnt_stat 
-clnttcp_nb_call(CLIENT *handle, u_long proc,
-		xdrproc_t inproc, caddr_t inargs, user_cb callback,
-		void * usercb_priv)
+clnttcp_nb_call(CLIENT *handle, u_long proc, xdrproc_t inproc, caddr_t inargs,
+		struct callback_info ucbi)
 {
 	struct ct_data *ct = NULL;
 	u_int32_t *xid, xid_host;
@@ -470,9 +465,8 @@ clnttcp_nb_call(CLIENT *handle, u_long proc,
 	cbi = (struct callback_info *)malloc(sizeof(struct callback_info));
 	if(cbi == NULL)
 		return RPC_SYSTEMERROR;
-	cbi->callback = callback;
-	cbi->cb_private = usercb_priv;
 
+	*cbi = ucbi;
 	xdrs = &ct->ct_xdrs;
 	/* Keep a copy of the xid being sent */
 	xid = (u_int32_t *)ct->ct_mcall;

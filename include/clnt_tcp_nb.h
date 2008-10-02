@@ -103,6 +103,14 @@ typedef void (*user_cb)(void *msg_buf, int bufsz, void *priv);
 
 #define read_rpc_response(flag) (!((flag) & RPC_NO_RX))
 
+/* Structure passed by RPC senders to specify the callback
+ *  and the private data to pass to the callback when the reply comes
+ *  back.
+ */
+struct callback_info {
+	user_cb callback;
+	void * cb_private;
+};
 
 /* Creates a non-blcking RPC handle. */
 extern CLIENT *clnttcp_nb_create(struct sockaddr_in *raddr, u_long prog,
@@ -113,8 +121,7 @@ extern CLIENT * clnttcp_b_create(struct sockaddr_in *raddr, u_long prog,
 		u_long vers, int *sockp, u_int sbufsz, u_int rbufsz);
 
 extern enum clnt_stat clnttcp_nb_call(CLIENT *handle, u_long proc,
-		xdrproc_t inproc, caddr_t inargs, user_cb callback,
-		void * usercb_priv);
+		xdrproc_t inproc, caddr_t inargs, struct callback_info ucbi);
    
 extern int clnttcp_nb_receive(CLIENT * handle, int flag);
 extern unsigned long clnttcp_datatx(CLIENT * handle);

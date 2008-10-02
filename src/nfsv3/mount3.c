@@ -43,6 +43,7 @@ mount3_call(int proc, void *arg, xdrproc_t xdr_proc,
 {
 	int sockp = RPC_ANYSOCK;
 	enum clnt_stat call_stat;
+	struct callback_info cbi;
 
 	if(!check_ctx(ctx))
 		return RPC_SYSTEMERROR;
@@ -55,8 +56,9 @@ mount3_call(int proc, void *arg, xdrproc_t xdr_proc,
 	if(ctx->nfs_mnt_cl == NULL)
 		return RPC_SYSTEMERROR;
 
-	call_stat = clnttcp_nb_call(ctx->nfs_mnt_cl, proc,
-			xdr_proc, arg, u_cb, priv);
+	cbi.callback = u_cb;
+	cbi.cb_private = priv;
+	call_stat = clnttcp_nb_call(ctx->nfs_mnt_cl, proc, xdr_proc, arg, cbi);
 
 	return call_stat;
 }
