@@ -59,6 +59,7 @@
 #include <queue.h>
 #include <ght_hash_table.h>
 #include <sys/select.h>
+#include <inttypes.h>
 
 #include <clnt_tcp_nb.h>
 
@@ -72,13 +73,17 @@ static int readtcp_nb(char *, char *, int);
 /* XDR Records layer calls this */
 static int writetcp_nb(char *, char *, int);
 
-/*
+/* The prototypes below are only for informational purposes
+ * as the original code used them, but we dont. Keep them around since
+ * someday we might have to refer to them for extending the
+ * functionality to that provided by the functions below.
+ */
 
+#if 0
 static void clnttcp_nb_abort(void);
 static void clnttcp_nb_geterr(CLIENT *handle, struct rpc_err *err);
 static bool_t clnttcp_nb_freeres(CLIENT *handle, xdrproc_t xdr_op , caddr_t args);
 static bool_t clnttcp_nb_control(CLIENT *handle, int option, char *val);
-*/
 static struct clnt_ops tcp_nb_ops =
 {
 	clnttcp_nb_call,
@@ -88,6 +93,7 @@ static struct clnt_ops tcp_nb_ops =
 	clnttcp_nb_destroy,
 	NULL /*clnttcp_nb_control*/
 };
+#endif
 
 /*
  * RPC record fragments represented using this structure
@@ -184,7 +190,10 @@ struct ct_data
 	XDR ct_xdrs;
 	struct rpc_err ct_error;
 
-	/* State touched by the transmission path */
+	/******************************************
+	 * State touched by the transmission path *
+	 *****************************************/
+
 	/* Size of buffer allocated for a single transmission
 	 * message */
 	int ct_sbufsz;
@@ -210,7 +219,10 @@ struct ct_data
 
 
 
-	/* State touched only by reception code. */
+	/*****************************************
+	 * State touched only by reception code. *
+	 ****************************************/
+
 	/* List of buffers that havent been written yet */
 	struct rpc_record_state ct_record_state;
 	
@@ -223,13 +235,15 @@ struct ct_data
 	char * ct_readbuf;
 
 
+	/****************************************
+	 * State used by both Tx and Rx path.	*
+	 ***************************************/
 
-	/* State common between transmission and reception code */
 	/* Maps a RPC Xid to the registered user callback */
 	ght_hash_table_t *ct_xid_to_ucb;
 
 	/* Determines whether socket is blocking or non-blocking */
-	int ct_sockflags;
+	u_int64_t ct_sockflags;
 
 	/* Number of outstanding calls */
 	int ct_pendingcalls;
@@ -313,17 +327,21 @@ clnttcp_b_create(struct sockaddr_in *raddr, u_long prog,
 	ct->ct_sock = *sockp;
 	ct->ct_addr = *raddr;
 
-	/* ASYNC_READ_BUF is default buffer size, in case user
-	 * specified value is 0
+	/* DEFAULT_SOCKRW_SIZE is default buffer size, in case user
+	 * specified value is 0.
 	 */
-	ct->ct_rbufsz = (rbufsz) ? rbufsz : ASYNC_READ_BUF;
+	ct->ct_rbufsz = (rbufsz) ? rbufsz : DEFAULT_SOCKRW_SIZE;
 	ct->ct_readbuf = (char *)mem_alloc(ct->ct_rbufsz);
 	if(ct->ct_readbuf == NULL)
 		return NULL;
 
-	ct->ct_sbufsz = (sbufsz) ? sbufsz : ASYNC_READ_BUF;
+	ct->ct_sbufsz = (sbufsz) ? sbufsz : DEFAULT_SOCKRW_SIZE;
 
-	ct->ct_sockflags = 0;
+	/* By default, the socket is blocking, flushes outstanding
+	 * buffers(see RPC_NO_TX_FLUSH) and blocks for
+	 * replies(RPC_NO_RX).
+	 */
+	ct->ct_sockflags = RPC_BLOCKING_WAIT;
 	ct->ct_datatx = 0;
 	ct->ct_datarx = 0;
 	ct->ct_pendingcalls = 0;
@@ -357,7 +375,11 @@ clnttcp_b_create(struct sockaddr_in *raddr, u_long prog,
 	xdrrec_create(&(ct->ct_xdrs), sbufsz, rbufsz, 
 			(caddr_t)ct, readtcp_nb, writetcp_nb);
 
-	handle->cl_ops = &tcp_nb_ops;
+	/* libc needs table of function pointers, but we've diverged
+	 * so much that its just not needed anymore because we do our
+	 * own calls to send and receive functions.
+	 */
+	/* handle->cl_ops = &tcp_nb_ops; */
 	handle->cl_private = (caddr_t)ct;
 	handle->cl_auth = authnone_create();
 
@@ -379,28 +401,49 @@ mem_free_return:
 }
 
 
+int
+clnttcp_sock_setflag(CLIENT * handle, u_int64_t flags)
+{
+	int sockfd;
+	struct ct_data * ct = NULL;
+
+	if(handle == NULL)
+		return -1;
+
+	ct = (struct ct_data *)handle->cl_private;
+	if(ct == NULL)
+		return -1;
+
+	sockfd = ct->ct_sock;
+
+	if(is_nonblocking(flags)) {
+		if(set_fd_nonblocking(sockfd) < 0) {
+			return -1;
+		}
+
+		ct->ct_sockflags |= RPC_NONBLOCK_WAIT;
+	}
+
+	return 0;
+}
+
+
 CLIENT *
 clnttcp_nb_create(struct sockaddr_in *raddr, u_long prog,
 		u_long vers, int *sockp, u_int sbufsz, 
 		u_int rbufsz)
 {
 	CLIENT * handle = NULL;
-	int sockfd;
-	struct ct_data * ct = NULL;
 
 	handle = clnttcp_b_create(raddr, prog, vers, sockp, sbufsz, rbufsz);
 
 	if(handle == NULL)
 		return NULL;
 
-	ct = (struct ct_data *)handle->cl_private;
-	sockfd = ct->ct_sock;
-
-	if(set_fd_nonblocking(sockfd) < 0) {
+	if((clnttcp_sock_setflag(handle, RPC_NONBLOCK_WAIT)) < 0) {
 		clnttcp_nb_destroy(handle);
 		return NULL;
 	}
-	ct->ct_sockflags |= RPC_NONBLOCK_WAIT;
 
 	return handle;
 }

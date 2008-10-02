@@ -66,11 +66,11 @@ typedef void (*user_cb)(void *msg_buf, int bufsz, void *priv);
 /* RPC record header in bytes. */
 #define RPC_RECORD_HEADER 4
 
-/* Default size for read and write syscalls */
-#define ASYNC_READ_BUF 4096
+/* Default size for read and write syscalls in bytes. */
+#define DEFAULT_SOCKRW_SIZE 32768
 	
 /* Size of the bucket for the xid to user callback map */
-#define BUCKET_XID 100000
+#define BUCKET_XID 100
 /* Bucket size for the file descriptor to ctdata map */
 #define BUCKET_FD 10
 
@@ -121,5 +121,6 @@ extern unsigned long clnttcp_datatx(CLIENT * handle);
 extern unsigned long clnttcp_datarx(CLIENT * handle);
 
 extern void clnttcp_nb_destroy (CLIENT *h);
+extern int clnttcp_sock_setflag(CLIENT * handle, u_int64_t flags);
 
 #endif
