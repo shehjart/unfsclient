@@ -112,6 +112,12 @@ struct callback_info {
 	void * cb_private;
 };
 
+struct rpc_proc_info {
+	u_long proc;
+	xdrproc_t inproc;
+	caddr_t inargs;
+};
+
 /* Creates a non-blcking RPC handle. */
 extern CLIENT *clnttcp_nb_create(struct sockaddr_in *raddr, u_long prog,
 		u_long vers, int *sockp, u_int sbufsz, u_int rbufsz);
@@ -120,8 +126,8 @@ extern CLIENT *clnttcp_nb_create(struct sockaddr_in *raddr, u_long prog,
 extern CLIENT * clnttcp_b_create(struct sockaddr_in *raddr, u_long prog,
 		u_long vers, int *sockp, u_int sbufsz, u_int rbufsz);
 
-extern enum clnt_stat clnttcp_nb_call(CLIENT *handle, u_long proc,
-		xdrproc_t inproc, caddr_t inargs, struct callback_info ucbi);
+extern enum clnt_stat clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc,
+		struct callback_info ucbi);
    
 extern int clnttcp_nb_receive(CLIENT * handle, int flag);
 extern unsigned long clnttcp_datatx(CLIENT * handle);

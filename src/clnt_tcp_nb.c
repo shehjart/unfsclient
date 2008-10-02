@@ -447,8 +447,7 @@ clnttcp_nb_create(struct sockaddr_in *raddr, u_long prog,
 
 
 enum clnt_stat 
-clnttcp_nb_call(CLIENT *handle, u_long proc, xdrproc_t inproc, caddr_t inargs,
-		struct callback_info ucbi)
+clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc, struct callback_info ucbi)
 {
 	struct ct_data *ct = NULL;
 	u_int32_t *xid, xid_host;
@@ -480,9 +479,9 @@ clnttcp_nb_call(CLIENT *handle, u_long proc, xdrproc_t inproc, caddr_t inargs,
 			(void *)&xid_host);
 	/* Send the static rpc header followed by the xdr'd message */
 	if((!XDR_PUTBYTES(xdrs, ct->ct_mcall, ct->ct_mpos))
-			|| (!XDR_PUTLONG (xdrs, (long *) &proc))
+			|| (!XDR_PUTLONG (xdrs, (long *) &rpc.proc))
 			|| (!AUTH_MARSHALL (handle->cl_auth, xdrs))
-			|| (!(*inproc)(xdrs, inargs)) 
+			|| (!(*rpc.inproc)(xdrs, rpc.inargs))
 			|| (!xdrrec_endofrecord(xdrs, TRUE))) {
 		/* If previously set status is still RPC_SUCCESS then
 		 * the problem is in encoding of args, return that */

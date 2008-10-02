@@ -119,6 +119,7 @@ nfs3_call(int proc, void *arg, xdrproc_t xdr_proc,
 	int sockp = RPC_ANYSOCK;
 	int flag = 1;
 	struct callback_info cbi;
+	struct rpc_proc_info rpc;
 
 	if(!check_ctx(ctx))
 		return RPC_SYSTEMERROR;
@@ -143,7 +144,10 @@ nfs3_call(int proc, void *arg, xdrproc_t xdr_proc,
 
 	cbi.callback = u_cb;
 	cbi.cb_private = priv;
-	return clnttcp_nb_call(ctx->nfs_cl, proc, xdr_proc, (caddr_t)arg, cbi);
+	rpc.proc = proc;
+	rpc.inproc = xdr_proc;
+	rpc.inargs = (caddr_t)arg;
+	return clnttcp_nb_call(ctx->nfs_cl, rpc, cbi);
 
 }
 

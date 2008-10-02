@@ -44,6 +44,7 @@ int main(int argc, char *argv[])
 	int err;
 	enum clnt_stat stat;
 	struct callback_info ucbi;
+	struct rpc_proc_info rpc;
 
 	if(argc < 3) {
 		fprintf(stderr, "Not enough arguments\nThis tests the"
@@ -77,9 +78,11 @@ int main(int argc, char *argv[])
 
 	ucbi.callback = mount_cb;
 	ucbi.cb_private = NULL;
+	rpc.proc = MOUNT3_MNT;
+	rpc.inproc = (xdrproc_t)xdr_dirpath;
+	rpc.inargs = (caddr_t)&argv[2];
 	fprintf(stdout, "Sending mount call\n");
-	stat = clnttcp_nb_call(cl, MOUNT3_MNT, (xdrproc_t)xdr_dirpath,
-			(caddr_t)&argv[2], ucbi);
+	stat = clnttcp_nb_call(cl, rpc, ucbi);
 
 	if(stat == RPC_SUCCESS)
 		fprintf(stderr, "Mount call sent with success\n");
