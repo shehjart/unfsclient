@@ -646,13 +646,11 @@ call_user_cb(struct ct_data *ct)
 	 * message. This will require the ability to extract the
 	 * RPC header and the message payload separately.
 	 */
-	cbi = ght_get(ct->ct_xid_to_ucb, sizeof(u_int32_t), (void *)&msg.rm_xid);
+	cbi = ght_remove(ct->ct_xid_to_ucb, sizeof(u_int32_t), (void *)&msg.rm_xid);
 	if(cbi == NULL) {
 		mem_free(rpc_msg, bufsize);
 		return;
 	}
-
-	ght_remove(ct->ct_xid_to_ucb, sizeof(u_int32_t), (void *)&msg.rm_xid);
 
 	/* This is very xdrmem specific. I need the pointer to
 	 * location from which NFS data is located, right after the
