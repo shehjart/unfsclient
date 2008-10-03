@@ -234,7 +234,6 @@ struct ct_data
 	/****************************************
 	 * State used by both Tx and Rx path.	*
 	 ***************************************/
-
 	/* Maps a RPC Xid to the registered user callback */
 	ght_hash_table_t *ct_xid_to_ucb;
 
@@ -615,6 +614,8 @@ call_user_cb(struct ct_data *ct)
 	u_long bufsize;
 	struct rpc_msg msg;
 	struct callback_info * cbi = NULL;
+	ght_iterator_t tbliter;
+	u_int32_t * cached_xid = NULL;
 
 	if(ct == NULL)
 		return;
@@ -632,10 +633,8 @@ call_user_cb(struct ct_data *ct)
 		return;
 	
 	xdrmem_create(&xdr, rpc_msg, bufsize, XDR_DECODE);
-	if(!xdr_replymsg(&xdr, &msg)) {
-		mem_free(rpc_msg, bufsize);
-		return;
-	}
+	if(!xdr_replymsg(&xdr, &msg))
+		goto mem_free_return;
 
 	ct->ct_datarx += bufsize;
 	/* If ever we get around to having our own xdr translation
@@ -646,11 +645,20 @@ call_user_cb(struct ct_data *ct)
 	 * message. This will require the ability to extract the
 	 * RPC header and the message payload separately.
 	 */
-	cbi = ght_remove(ct->ct_xid_to_ucb, sizeof(u_int32_t), (void *)&msg.rm_xid);
-	if(cbi == NULL) {
-		mem_free(rpc_msg, bufsize);
-		return;
+
+	/* First check for callback info in the cached entry. */
+	if((cbi = ght_first(ct->ct_xid_to_ucb, &tbliter,
+					(const void **)&cached_xid)) == NULL)
+		goto mem_free_return;
+
+	if(*cached_xid != msg.rm_xid) {
+		cbi = ght_remove(ct->ct_xid_to_ucb, sizeof(u_int32_t),
+				(void *)&msg.rm_xid);
+		if(cbi == NULL)
+			goto mem_free_return;
 	}
+	else
+		cbi = ght_remove_first(ct->ct_xid_to_ucb);
 
 	/* This is very xdrmem specific. I need the pointer to
 	 * location from which NFS data is located, right after the
@@ -660,8 +668,10 @@ call_user_cb(struct ct_data *ct)
 	if(cbi->callback != NULL)
 		cbi->callback(xdr.x_private, xdr.x_handy, cbi->cb_private);
 
-	mem_free(rpc_msg, bufsize);
 	free(cbi);
+
+mem_free_return:
+	mem_free(rpc_msg, bufsize);
 
 	return;
 }
