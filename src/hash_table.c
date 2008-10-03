@@ -439,6 +439,7 @@ int ght_insert(ght_hash_table_t *p_ht,
 
   /* Place the entry first in the list. */
   p_entry->p_next = p_ht->pp_entries[l_key];
+  p_entry->p_bucketidx = l_key;
   p_entry->p_prev = NULL;
   if (p_ht->pp_entries[l_key])
     {
@@ -624,6 +625,35 @@ void *ght_first(ght_hash_table_t *p_ht, ght_iterator_t *p_iterator, const void *
 {
   return first_keysize(p_ht, p_iterator, pp_key, NULL);
 }
+
+void *ght_remove_first(ght_hash_table_t *p_ht)
+{
+  ght_hash_entry_t *first = NULL;
+  void * value = NULL;
+
+  assert(p_ht);
+  first = p_ht->p_oldest;
+
+  if (first == NULL)
+	  return NULL;
+
+  if (first)
+    {
+        remove_from_chain(p_ht, first->p_bucketidx, first);
+
+        /* This should ONLY be done for normal items (for now all items) */
+        p_ht->i_items--;
+
+        p_ht->p_nr[first->p_bucketidx]--;
+
+        value = first->p_data;
+        he_finalize(p_ht, first);
+	return value;
+    }
+
+  return NULL;
+}
+
 
 void *ght_first_keysize(ght_hash_table_t *p_ht, ght_iterator_t *p_iterator, const void **pp_key, unsigned int *size)
 {

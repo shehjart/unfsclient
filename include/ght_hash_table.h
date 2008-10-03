@@ -99,6 +99,12 @@ typedef struct s_hash_key
 typedef struct s_hash_entry
 {
   void *p_data;
+  /* Store the index of the bucket within the entry
+   * so we do not have to calculate it every time we need
+   * to manipulate the table using the entry itself, rather
+   * than a key.
+   */
+  ght_uint32_t p_bucketidx;
 
   struct s_hash_entry *p_next;
   struct s_hash_entry *p_prev;
@@ -399,6 +405,16 @@ void *ght_get(ght_hash_table_t *p_ht,
  */
 void *ght_remove(ght_hash_table_t *p_ht,
 		 unsigned int i_key_size, const void *p_key_data);
+
+
+/*
+ * Remove the first,i.e. the oldest entry in the table and set the
+ * new oldest to the one that was inserted after the current oldest
+ * one.
+ *
+ * The value of the removed entry is returned.
+ */
+void *ght_remove_first(ght_hash_table_t *p_ht);
 
 /**
  * Return the first entry in the hash table. This function should be
