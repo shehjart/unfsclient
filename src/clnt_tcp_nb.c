@@ -502,19 +502,25 @@ clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc, struct callback_info u
 static int 
 add_buffer_list(struct buf_list_head *head, char *buf, int len, bool_t nocopy)
 {
+	struct frag_buffer *new_frag = NULL;
+	int bufsize;
+
 	if((head == NULL) || (buf == NULL))
 		return -1;
-	
-	struct frag_buffer *new_frag = 
-		(struct frag_buffer *)mem_alloc(sizeof(struct frag_buffer));
 
+	if (!nocopy)
+		bufsize = sizeof(struct frag_buffer) + (sizeof(char) + len);
+	else
+		bufsize = sizeof(struct frag_buffer);
+
+	new_frag = (struct frag_buffer *)malloc(bufsize);
 	if(new_frag == NULL)
 		return -1;
 
 	if(!nocopy) {
-		new_frag->fb_base = (char *)mem_alloc(sizeof(char) * len);
+		new_frag->fb_base = (char *)(new_frag + 1);
 		if(new_frag->fb_base == NULL) {
-			mem_free(new_frag, sizeof(struct frag_buffer));
+			free(new_frag);
 			return -1;
 		}
 		memcpy(new_frag->fb_base, buf, len);
@@ -597,8 +603,7 @@ collate_buf_list(struct rpc_record_state *rs, u_long *bsize)
 		TAILQ_REMOVE(&(rs->rs_frag_list), fbuf, fb_entries);
 		memcpy(curr, fbuf->fb_base, fbuf->fb_len);
 		curr += fbuf->fb_len;
-		mem_free(fbuf->fb_base, fbuf->fb_len);
-		mem_free(fbuf, sizeof(struct frag_base));
+		free(fbuf);
 	}
 
 	*bsize = bufsize;
@@ -890,8 +895,7 @@ write_block_again:
 		}
 
 		TAILQ_REMOVE(head, buf, fb_entries);
-		mem_free(buf->fb_base, buf->fb_len);
-		mem_free(buf, sizeof(struct frag_buffer));
+		free(buf);
 	}
 
 	return 0;
@@ -978,14 +982,12 @@ clnttcp_nb_destroy (CLIENT *h)
 	if(rs != NULL) {
 		TAILQ_FOREACH_SAFE(fb, &(rs->rs_frag_list), fb_entries, tmp) {
 			TAILQ_REMOVE(&(rs->rs_frag_list), fb, fb_entries);
-			mem_free(fb->fb_base, fb->fb_len);
 			mem_free(fb, sizeof(struct frag_base));
 		}
 	}
 
 	TAILQ_FOREACH_SAFE(fb, &(ct->ct_sndlist), fb_entries, tmp) {
 			TAILQ_REMOVE(&(ct->ct_sndlist), fb, fb_entries);
-			mem_free(fb->fb_base, fb->fb_len);
 			mem_free(fb, sizeof(struct frag_base));
 		}
 
