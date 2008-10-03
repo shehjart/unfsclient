@@ -28,3 +28,17 @@ these files and the sources as the first point of information.
 For more details contact me at:
 shehjart AT gelato DOT unsw DOT edu DOT au
 
+or see the following web pages for info on the source code components:
+
+Asynchronous RPC Library:
+	http://gelato.unsw.edu.au/IA64wiki/AsyncRPC
+
+libnfsclient:
+	http://gelato.unsw.edu.au/IA64wiki/libnfsclient
+
+libghthash:
+	http://www.ipd.bth.se/ska/sim_home/libghthash.html
+
+Credits
+-------
+Simon Kagstrom for libghthash
