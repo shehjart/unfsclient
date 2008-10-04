@@ -36,15 +36,26 @@
 #include <stddef.h>
 #include <nfsclientd.h>
 #include <assert.h>
+#include <netdb.h>
 
+
+struct fuse_opt nfsclientd_fuseopts[] = {
+		{"--server=%s", offsetof(struct nfsclientd_opts, server), 0},
+		{"--remotedir=%s", offsetof(struct nfsclientd_opts, remotedir), 0},
+		{"--ctxpoolsize=%d", offsetof(struct nfsclientd_opts, ctxpoolsize),
+			0},
+		FUSE_OPT_END
+	};
 
 void
 usage()
 {
 	printf("USAGE: nfsclientd [OPTIONS] <mountpoint>\n");
 	printf("Options\n");
-	printf("\t--server <server>\n");
-	printf("\t--remotedir <server_exported_directory>\n");
+	printf("\t--server=<server>\n");
+	printf("\t--remotedir=<server_exported_directory>\n");
+	printf("\t--ctxpoolsize=<ctx_pool_size>\n");
+
 	return;
 }
 
@@ -87,14 +98,25 @@ init_nfsclientd_context(struct nfsclientd_opts opts)
 	ctx = (struct nfsclientd_context *)malloc(sizeof(struct nfsclientd_context));
 
 	assert(ctx != NULL);
-	ctx->nfsctx = NULL;
+
+	fprintf(stdout, "server: %s, remotedir: %s, mountpoint: %s,"
+			" ctxpoolsize: %d\n", opts.server, opts.remotedir,
+			opts.mountpoint, opts.ctxpoolsize);
+	memset(ctx, 0, sizeof(struct nfsclientd_context));
 	ctx->mountopts.server = strdup(opts.server);
 	ctx->mountopts.remotedir = strdup(opts.remotedir);
 	ctx->mountopts.mountpoint = strdup(opts.mountpoint);
+	ctx->mountopts.srvaddr = opts.srvaddr;
+	ctx->mountopts.ctxpoolsize = opts.ctxpoolsize;
+
+	if((opts.ctxpoolsize <= 0) || (opts.ctxpoolsize > MAX_CTXPOOL_SIZE)) {
+		fprintf(stderr,"nfsclientd: Context pool must be between 1-%d\n",
+				MAX_CTXPOOL_SIZE);
+		return NULL;
+	}
 
 	return ctx;
 }
-
 
 int
 main(int argc, char * argv[])
@@ -105,15 +127,11 @@ main(int argc, char * argv[])
 	char * mountpoint = NULL;
 	struct fuse_session * se = NULL;
 	struct nfsclientd_context * nfscd_ctx = NULL;
+	struct addrinfo *srv_addr, hints;
+	int err;
 	
 	options.server = options.remotedir = NULL;
-
-	struct fuse_opt nfsclientd_fuseopts[] = {
-		{"--server=%s", offsetof(struct nfsclientd_opts, server), 0},
-		{"--remotedir=%s", offsetof(struct nfsclientd_opts, remotedir), 0},
-		FUSE_OPT_END
-	};
-
+	options.ctxpoolsize = DEFAULT_CTXPOOL_SIZE;
 	if((fuse_opt_parse(&fuseargs, &options, nfsclientd_fuseopts, NULL)) < 0) {
 		fprintf(stderr, "FUSE could not parse options.\n");
 		return -1;
@@ -125,22 +143,35 @@ main(int argc, char * argv[])
 		return -1;
 	}
 
+	/* First resolve server name */
+	hints.ai_family = AF_INET;
+	hints.ai_protocol = 0;
+	hints.ai_socktype = 0;
+	hints.ai_flags = 0;
+
+	if((err = getaddrinfo(options.server, NULL, &hints, &srv_addr)) != 0) {
+		fprintf(stderr, "nfsclientd: Cannot resolve name: %s: %s\n",
+				options.server, gai_strerror(err));
+		return -1;
+	}
+
+	options.srvaddr = (struct sockaddr_in *)srv_addr->ai_addr;
+
 	if(fuse_parse_cmdline(&fuseargs, &mountpoint, NULL, NULL) < 0) {
 		fprintf(stderr, "fuse could not parse arguments.\n");
 		return -1;
 	}
 
 	options.mountpoint = mountpoint;
-	fprintf(stdout, "server: %s, remotedir: %s, mountpoint: %s\n",
-			options.server, options.remotedir, mountpoint);
+	if((nfscd_ctx = init_nfsclientd_context(options)) == NULL) {
+		fprintf(stderr, "nfsclientd: Cannot init nfsclientd context.\n");
+		return -1;
+	}
 
 	if((fusechan = fuse_mount(mountpoint, &fuseargs)) == NULL) {
 		fprintf(stderr, "fuse could not mount.\n");
 		return -1;
 	}
-
-	nfscd_ctx = init_nfsclientd_context(options);
-
 	if((se = fuse_lowlevel_new(&fuseargs, &nfsclientd_ops,
 		sizeof(struct fuse_lowlevel_ops), nfscd_ctx)) == NULL) {
 		fprintf(stderr, "fuse could not create mount.\n");

@@ -20,23 +20,28 @@
  *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#define FUSE_USE_VERSION 26
+#define FUSE_USE_VERSION	26
 
 #include <fuse_lowlevel.h>
 #include <nfsclient.h>
 
+#define DEFAULT_CTXPOOL_SIZE	1
+#define MAX_CTXPOOL_SIZE	20
 
 struct nfsclientd_opts {
 	char * server;
 	char * remotedir;
 	char * mountpoint;
+
+	struct sockaddr_in * srvaddr;
+	int ctxpoolsize;
 };
 
 
 struct nfsclientd_context {
 
-	/* The libnfsclient context */
-	nfs_ctx * nfsctx;
+	/* The libnfsclient context pool. */
+	nfs_ctx ** nfsctx_pool;
 
 	/* The options and configurables */
 	struct nfsclientd_opts mountopts;
