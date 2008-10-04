@@ -30,17 +30,12 @@
 #define FUSE_USE_VERSION 26
 
 #include <fuse_lowlevel.h>
-#include <nfsclient.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
-
-
-struct nfsclientd_opts {
-	char * server;
-	char * remotedir;
-};
+#include <nfsclientd.h>
+#include <assert.h>
 
 
 void
@@ -53,12 +48,65 @@ usage()
 	return;
 }
 
+static struct fuse_lowlevel_ops nfsclientd_ops = {
+	.init		= nfscd_mount_init,
+	.destroy	= nfscd_destroy,
+/*
+	.lookup		= nfscd_lookup,
+	.forget		= nfscd_forget,
+	.getattr	= nfscd_getattr,
+	.setattr	= nfscd_setattr,
+	.readlink	= nfscd_readlink,
+	.mknod		= nfscd_mknod,
+	.mkdir		= nfscd_mkdir,
+	.unlink		= nfscd_unlink,
+	.rmdir		= nfscd_rmdir,
+	.symlink	= nfscd_symlink,
+	.rename		= nfscd_rename,
+	.link		= nfscd_link,
+	.open		= nfscd_open,
+	.read		= nfscd_read,
+	.write		= nfscd_write,
+	.flush		= nfscd_flush,
+	.release	= nfscd_release,
+	.fsync		= nfscd_fsync,
+	.opendir	= nfscd_opendir,
+	.readdir	= nfscd_readdir,
+	.releasedir	= nfscd_releasedir,
+	.fsyncdir	= nfscd_fsyncdir,
+	.statfs		= nfscd_statfs,
+	.access		= nfscd_access,
+	.create		= nfscd_create
+*/
+};
+
+static struct nfsclientd_context * 
+init_nfsclientd_context(struct nfsclientd_opts opts)
+{
+	struct nfsclientd_context * ctx = NULL;
+	ctx = (struct nfsclientd_context *)malloc(sizeof(struct nfsclientd_context));
+
+	assert(ctx != NULL);
+	ctx->nfsctx = NULL;
+	ctx->mountopts.server = strdup(opts.server);
+	ctx->mountopts.remotedir = strdup(opts.remotedir);
+	ctx->mountopts.mountpoint = strdup(opts.mountpoint);
+
+	return ctx;
+}
+
+
 int
 main(int argc, char * argv[])
 {
 	struct fuse_args fuseargs = FUSE_ARGS_INIT(argc, argv);
 	struct fuse_chan *fusechan = NULL;
 	struct nfsclientd_opts options;
+	char * mountpoint = NULL;
+	struct fuse_session * se = NULL;
+	struct nfsclientd_context * nfscd_ctx = NULL;
+	
+	options.server = options.remotedir = NULL;
 
 	struct fuse_opt nfsclientd_fuseopts[] = {
 		{"--server=%s", offsetof(struct nfsclientd_opts, server), 0},
@@ -66,7 +114,6 @@ main(int argc, char * argv[])
 		FUSE_OPT_END
 	};
 
-	options.server = options.remotedir = NULL;
 	if((fuse_opt_parse(&fuseargs, &options, nfsclientd_fuseopts, NULL)) < 0) {
 		fprintf(stderr, "FUSE could not parse options.\n");
 		return -1;
@@ -78,13 +125,42 @@ main(int argc, char * argv[])
 		return -1;
 	}
 
-	if(fuse_parse_cmdline(&fuseargs, NULL, NULL, NULL) < 0) {
+	if(fuse_parse_cmdline(&fuseargs, &mountpoint, NULL, NULL) < 0) {
 		fprintf(stderr, "fuse could not parse arguments.\n");
 		return -1;
 	}
 
-	fprintf(stdout, "server: %s, remotedir: %s\n", options.server,
-			options.remotedir);
+	options.mountpoint = mountpoint;
+	fprintf(stdout, "server: %s, remotedir: %s, mountpoint: %s\n",
+			options.server, options.remotedir, mountpoint);
+
+	if((fusechan = fuse_mount(mountpoint, &fuseargs)) == NULL) {
+		fprintf(stderr, "fuse could not mount.\n");
+		return -1;
+	}
+
+	nfscd_ctx = init_nfsclientd_context(options);
+
+	if((se = fuse_lowlevel_new(&fuseargs, &nfsclientd_ops,
+		sizeof(struct fuse_lowlevel_ops), nfscd_ctx)) == NULL) {
+		fprintf(stderr, "fuse could not create mount.\n");
+		goto unmount_exit;	
+	}
+	
+	if(fuse_set_signal_handlers(se) < 0) {
+		fprintf(stderr, "fuse could not set signal handlers.\n");
+		goto session_destroy_exit;
+	}
+
+	fuse_session_add_chan(se, fusechan);
+	fuse_session_loop_mt(se);
+	fuse_opt_free_args(&fuseargs);
+
+session_destroy_exit:
+	fuse_session_destroy(se);
+
+unmount_exit:
+	fuse_unmount(mountpoint, fusechan);
+
 	return 0;
 }
-

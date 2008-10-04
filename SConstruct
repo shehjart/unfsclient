@@ -46,6 +46,6 @@ if not conf.CheckCHeader('fuse_lowlevel.h'):
 
 nfsclientd_env = conf.Finish()
 
-nfsclientd_env.Program('nfsclientd', ['src/nfsclientd.c', libnfsclient])
+nfsclientd_env.Program('nfsclientd', ['src/nfsclientd.c', 'src/nfscd_ops.c', libnfsclient])
 
 Default(None)
