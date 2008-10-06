@@ -44,5 +44,6 @@ extern nfs_ctx *nfs_init(struct sockaddr_in *srv, int proto, int connflags);
 extern void mnt_complete(nfs_ctx * ctx);
 extern int nfs_complete(nfs_ctx * ctx, int flag);
 extern char * nfsstat3_strerror(int stat);
+extern void nfs_destroy(nfs_ctx * ctx);
 #endif
 

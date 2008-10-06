@@ -103,3 +103,18 @@ nfs_complete(nfs_ctx * ctx, int flag)
 	return clnttcp_nb_receive(ctx->nfs_cl, flag);
 }
 
+void
+nfs_destroy(nfs_ctx * ctx)
+{
+	if(ctx == NULL)
+		return;
+
+	if(ctx->nfs_srv != NULL)
+		free(ctx->nfs_srv);
+
+	if(ctx->nfs_mnt != NULL)
+		free(ctx->nfs_mnt);
+
+	free(ctx);
+	return;
+}
