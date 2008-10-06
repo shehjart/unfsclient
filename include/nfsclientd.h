@@ -24,6 +24,7 @@
 
 #include <fuse_lowlevel.h>
 #include <nfsclient.h>
+#include <flist.h>
 
 #define DEFAULT_CTXPOOL_SIZE	1
 #define MAX_CTXPOOL_SIZE	20
@@ -48,6 +49,12 @@ struct nfsclientd_context {
 
 	/* The options and configurables */
 	struct nfsclientd_opts mountopts;
+
+	/* Metadata request queue */
+	struct flist_head md_rq;
+
+	/* Read write request queue */
+	struct flist_head rw_rq;
 
 	/* Protocol private state. */
 };

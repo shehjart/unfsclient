@@ -62,6 +62,10 @@ init_nfsclient_context_pool(struct nfsclientd_context * nfscd_ctx)
 static int
 init_nfsclient_queues(struct nfsclientd_context * ctx)
 {
+	assert(ctx != NULL);
+	INIT_FLIST_HEAD(&ctx->md_rq);
+	INIT_FLIST_HEAD(&ctx->rw_rq);
+
 	return 0;
 }
 
