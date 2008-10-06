@@ -44,6 +44,10 @@ if not conf.CheckCHeader('fuse_lowlevel.h'):
 	print '\tfuse_lowlevel.h not found.'
 	Exit(-1)
 
+if not conf.CheckFunc('daemon'):
+	print '\tdaemon(3) function not available\n'
+	Exit(-1)
+
 nfsclientd_env = conf.Finish()
 
 nfsclientd_env.Program('nfsclientd', ['src/nfsclientd.c', 'src/nfscd_ops.c', libnfsclient])
