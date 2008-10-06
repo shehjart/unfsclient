@@ -53,7 +53,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-
 /* User callback type */
 typedef void (*user_cb)(void *msg_buf, int bufsz, void *priv);
 

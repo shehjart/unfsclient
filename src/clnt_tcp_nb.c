@@ -56,10 +56,10 @@
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <stdlib.h>
-#include <queue.h>
 #include <ght_hash_table.h>
 #include <sys/select.h>
 #include <inttypes.h>
+#include <flist.h>
 
 #include <clnt_tcp_nb.h>
 
@@ -104,13 +104,11 @@ static struct clnt_ops tcp_nb_ops =
  * See RFC 1831, Section on Record Marking Standard.
  */
 struct frag_buffer {
-	TAILQ_ENTRY(frag_buffer) fb_entries;
+	struct flist_head fb_list;
 	char *fb_base;
 	char *fb_current;
 	int fb_len;
 };
-
-TAILQ_HEAD(buf_list_head, frag_buffer);
 
 /* RPC Record Stream State
  * See RFC 1831, Section on Record Marking Standard.
@@ -124,7 +122,7 @@ struct rpc_record_state {
 	 * record are stored in this list till the last
 	 * fragment is received.
 	 */
-	struct buf_list_head rs_frag_list;
+	struct flist_head rs_frag_list;
 
 	/* Size of the record in bytes.
 	 * This field is updated each time a  new fragment
@@ -211,7 +209,7 @@ struct ct_data
 	 * Things generally end up in this buffer if the syscall
 	 * that was supposed to send these returned an EAGAIN.
 	*/
-	struct buf_list_head ct_sndlist;
+	struct flist_head ct_sndlist;
 
 
 
@@ -347,8 +345,8 @@ clnttcp_b_create(struct sockaddr_in *raddr, u_long prog,
 	ct->ct_record_state.rs_frag_offset = 0;
 	ct->ct_xid_to_ucb = ght_create(BUCKET_XID);
 
-	TAILQ_INIT(&ct->ct_sndlist);
-	TAILQ_INIT(&ct->ct_record_state.rs_frag_list);
+	INIT_FLIST_HEAD(&ct->ct_sndlist);
+	INIT_FLIST_HEAD(&ct->ct_record_state.rs_frag_list);
 
 	static_cmsg.rm_xid = create_xid();
 	static_cmsg.rm_direction = CALL;
@@ -500,7 +498,7 @@ clnttcp_nb_call(CLIENT *handle, struct rpc_proc_info rpc, struct callback_info u
  * list instead of copying the buffer.
  */
 static int 
-add_buffer_list(struct buf_list_head *head, char *buf, int len, bool_t nocopy)
+add_buffer_list(struct flist_head *head, char *buf, int len, bool_t nocopy)
 {
 	struct frag_buffer *new_frag = NULL;
 	int bufsize;
@@ -531,7 +529,7 @@ add_buffer_list(struct buf_list_head *head, char *buf, int len, bool_t nocopy)
 	new_frag->fb_len = len;
 	new_frag->fb_current = new_frag->fb_base;
 
-	TAILQ_INSERT_TAIL(head, new_frag, fb_entries);
+	flist_add_tail(&new_frag->fb_list, head);
 
 	return 0;
 }
@@ -586,8 +584,9 @@ static caddr_t
 collate_buf_list(struct rpc_record_state *rs, u_long *bsize)
 {
 	u_long bufsize = 0;
-	struct frag_buffer *fbuf, *tmp;
-	fbuf = tmp = NULL;
+	struct frag_buffer * fbuf = NULL;
+	struct flist_head *iter, *tmp;
+	iter = tmp = NULL;
 	caddr_t rpc_msg, curr = NULL;
 
 	if(rs == NULL)
@@ -599,8 +598,9 @@ collate_buf_list(struct rpc_record_state *rs, u_long *bsize)
 		return NULL;
 	curr = rpc_msg;
 	
-	TAILQ_FOREACH_SAFE(fbuf, &(rs->rs_frag_list), fb_entries, tmp) {
-		TAILQ_REMOVE(&(rs->rs_frag_list), fbuf, fb_entries);
+	flist_for_each_safe(iter, tmp, &(rs->rs_frag_list)) {
+		flist_del(iter);
+		fbuf = flist_entry(iter, struct frag_buffer, fb_list);
 		memcpy(curr, fbuf->fb_base, fbuf->fb_len);
 		curr += fbuf->fb_len;
 		free(fbuf);
@@ -828,11 +828,13 @@ readtcp_nb(char *ct_handle, char *buf, int len)
 static int
 send_buffers(int sockfd, struct ct_data * ct, int flag)
 {
-	struct frag_buffer *buf, *tvar;
+	struct frag_buffer * buf = NULL;
+	struct flist_head *iter, *tvar;
 	int written;
 	fd_set wset;
 	int fd_count;
-	struct buf_list_head * head = NULL;
+	struct flist_head * head = NULL;
+	iter = head = tvar = NULL;
 
 	if(ct == NULL)
 		return -1;
@@ -841,8 +843,8 @@ send_buffers(int sockfd, struct ct_data * ct, int flag)
 	if(head == NULL)
 		return -1;
 	
-	TAILQ_FOREACH_SAFE(buf, head, fb_entries, tvar) {
-
+	flist_for_each_safe(iter, tvar, head) {
+		buf = flist_entry(iter, struct frag_buffer, fb_list);
 		/* If the socket is non-blocking but for this
 		 * invocation we need a blocking.
 		 */
@@ -894,7 +896,7 @@ write_block_again:
 				return 0;
 		}
 
-		TAILQ_REMOVE(head, buf, fb_entries);
+		flist_del(iter);
 		free(buf);
 	}
 
@@ -965,8 +967,9 @@ clnttcp_nb_destroy (CLIENT *h)
 {
 	struct ct_data *ct = NULL;
 	struct rpc_record_state *rs = NULL;
-	struct frag_buffer *fb, *tmp;
-	fb = tmp = NULL;
+	struct frag_buffer * fb = NULL;
+	struct flist_head *iter, *tmp;
+	iter = tmp = NULL;
 
 	if(h == NULL)
 		return;
@@ -980,16 +983,18 @@ clnttcp_nb_destroy (CLIENT *h)
 
 	rs = &(ct->ct_record_state);
 	if(rs != NULL) {
-		TAILQ_FOREACH_SAFE(fb, &(rs->rs_frag_list), fb_entries, tmp) {
-			TAILQ_REMOVE(&(rs->rs_frag_list), fb, fb_entries);
+		flist_for_each_safe(iter, tmp, &(rs->rs_frag_list)) {
+			fb = flist_entry(iter, struct frag_buffer, fb_list);
+			flist_del(iter);
 			mem_free(fb, sizeof(struct frag_base));
 		}
 	}
 
-	TAILQ_FOREACH_SAFE(fb, &(ct->ct_sndlist), fb_entries, tmp) {
-			TAILQ_REMOVE(&(ct->ct_sndlist), fb, fb_entries);
-			mem_free(fb, sizeof(struct frag_base));
-		}
+	flist_for_each_safe(iter, tmp, &(ct->ct_sndlist)) {
+		fb = flist_entry(iter, struct frag_buffer, fb_list);
+		flist_del(iter);
+		mem_free(fb, sizeof(struct frag_base));
+	}
 
 	mem_free ((caddr_t)ct, sizeof(struct ct_data));
 
