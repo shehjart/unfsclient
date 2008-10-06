@@ -28,6 +28,9 @@
 #define DEFAULT_CTXPOOL_SIZE	1
 #define MAX_CTXPOOL_SIZE	20
 
+#define DEFAULT_THREADPOOL_SIZE		1
+#define MAX_THREADPOOL_SIZE		20
+
 struct nfsclientd_opts {
 	char * server;
 	char * remotedir;
@@ -35,8 +38,8 @@ struct nfsclientd_opts {
 
 	struct sockaddr_in * srvaddr;
 	int ctxpoolsize;
+	int threadpool;
 };
-
 
 struct nfsclientd_context {
 
@@ -45,10 +48,12 @@ struct nfsclientd_context {
 
 	/* The options and configurables */
 	struct nfsclientd_opts mountopts;
+
+	/* Protocol private state. */
 };
 
 
 
 /* nfsclientd's FUSE operations. */
-extern void nfscd_mount_init(void *userdata, struct fuse_conn_info *conn);
+extern void nfscd_init(void *userdata, struct fuse_conn_info *conn);
 extern void nfscd_destroy(void *userdata);

@@ -44,6 +44,8 @@ struct fuse_opt nfsclientd_fuseopts[] = {
 		{"--remotedir=%s", offsetof(struct nfsclientd_opts, remotedir), 0},
 		{"--ctxpoolsize=%d", offsetof(struct nfsclientd_opts, ctxpoolsize),
 			0},
+		{"--threadpool=%d", offsetof(struct nfsclientd_opts, threadpool),
+			0},
 		FUSE_OPT_END
 	};
 
@@ -55,12 +57,13 @@ usage()
 	printf("\t--server=<server>\n");
 	printf("\t--remotedir=<server_exported_directory>\n");
 	printf("\t--ctxpoolsize=<ctx_pool_size>\n");
+	printf("\t--threadpool=<thread_pool_size>\n");
 
 	return;
 }
 
 static struct fuse_lowlevel_ops nfsclientd_ops = {
-	.init		= nfscd_mount_init,
+	.init		= nfscd_init,
 	.destroy	= nfscd_destroy,
 /*
 	.lookup		= nfscd_lookup,
@@ -100,18 +103,26 @@ init_nfsclientd_context(struct nfsclientd_opts opts)
 	assert(ctx != NULL);
 
 	fprintf(stdout, "server: %s, remotedir: %s, mountpoint: %s,"
-			" ctxpoolsize: %d\n", opts.server, opts.remotedir,
-			opts.mountpoint, opts.ctxpoolsize);
+			" ctxpoolsize: %d, threadpoolsize: %d\n", opts.server,
+			opts.remotedir, opts.mountpoint, opts.ctxpoolsize,
+			opts.threadpool);
 	memset(ctx, 0, sizeof(struct nfsclientd_context));
 	ctx->mountopts.server = strdup(opts.server);
 	ctx->mountopts.remotedir = strdup(opts.remotedir);
 	ctx->mountopts.mountpoint = strdup(opts.mountpoint);
 	ctx->mountopts.srvaddr = opts.srvaddr;
 	ctx->mountopts.ctxpoolsize = opts.ctxpoolsize;
+	ctx->mountopts.threadpool = opts.threadpool;
 
 	if((opts.ctxpoolsize <= 0) || (opts.ctxpoolsize > MAX_CTXPOOL_SIZE)) {
 		fprintf(stderr,"nfsclientd: Context pool must be between 1-%d\n",
 				MAX_CTXPOOL_SIZE);
+		return NULL;
+	}
+
+	if((opts.threadpool <= 0) || (opts.threadpool > MAX_THREADPOOL_SIZE)) {
+		fprintf(stderr,"nfsclientd: Thread pool must be between 1-%d\n",
+				MAX_THREADPOOL_SIZE);
 		return NULL;
 	}
 
@@ -132,6 +143,7 @@ main(int argc, char * argv[])
 	
 	options.server = options.remotedir = NULL;
 	options.ctxpoolsize = DEFAULT_CTXPOOL_SIZE;
+	options.threadpool = DEFAULT_THREADPOOL_SIZE;
 	if((fuse_opt_parse(&fuseargs, &options, nfsclientd_fuseopts, NULL)) < 0) {
 		fprintf(stderr, "FUSE could not parse options.\n");
 		return -1;

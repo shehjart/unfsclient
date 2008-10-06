@@ -33,50 +33,46 @@
 #include <string.h>
 #include <errno.h>
 
-static void
-init_ctxpool_mount_cb(void *msg, int bufsz, void *priv)
-{
-	int * mountstatus = NULL;
-
-	assert(priv != NULL);
-	mountstatus = (int *)priv;
-	*mountstatus = 1;
-}
-
 static int
 init_nfsclient_context_pool(struct nfsclientd_context * nfscd_ctx)
 {
 	int i;
-	assert(nfscd_ctx != NULL);
 	nfs_ctx **ctxpool, *ctx;
-	int mountstatus;
+	int psize;
 
-	ctxpool = (nfs_ctx **)malloc(sizeof(nfs_ctx *) * DEFAULT_CTXPOOL_SIZE);
+	assert(nfscd_ctx != NULL);
+	psize = nfscd_ctx->mountopts.threadpool * nfscd_ctx->mountopts.ctxpoolsize;
+	ctxpool = (nfs_ctx **)malloc(sizeof(nfs_ctx *) * psize);
 	if(ctxpool == NULL)
 		return -1;
 
+	/* Init all contexts... */
 	for(i = 0; i < DEFAULT_CTXPOOL_SIZE; i++) {
 		ctx = ctxpool[i];
 		ctx = nfs_init(nfscd_ctx->mountopts.srvaddr, IPPROTO_TCP,
 				NFSC_CFL_NONBLOCKING);
 		if(ctx == NULL)
 			return -2;
-
-		mountstatus = 0;
-		mount3_mnt((dirpath *)&nfscd_ctx->mountopts.remotedir, ctx,
-				init_ctxpool_mount_cb, &mountstatus,
-				RPC_BLOCKING_WAIT);
-
-		if(mountstatus != 1)
-			return -3;
 	}
 
 	nfscd_ctx->nfsctx_pool = ctxpool;
 	return 0;
 }
 
+static int
+init_nfsclient_queues(struct nfsclientd_context * ctx)
+{
+	return 0;
+}
+
+static int
+init_nfsclient_thread_pool(struct nfsclientd_context * ctx)
+{
+	return 0;
+}
+
 void
-nfscd_mount_init(void *userdata, struct fuse_conn_info *conn)
+nfscd_init(void *userdata, struct fuse_conn_info *conn)
 {
 	struct nfsclientd_context * ctx = NULL;
 	
@@ -87,10 +83,61 @@ nfscd_mount_init(void *userdata, struct fuse_conn_info *conn)
 		fprintf(stderr, "nfsclientd: Could not init context pool.\n");
 		exit(-1);
 	}
+
+	if((init_nfsclient_queues(ctx)) < 0) {
+		fprintf(stderr, "nfsclientd: Could not init request queues.\n");
+		goto destroy_context;
+	}
+
+	conn->async_read = 1;
+	if((init_nfsclient_thread_pool(ctx)) < 0) {
+		fprintf(stderr, "nfsclientd: Could not init thread pool.\n");
+		goto destroy_context;
+	}
+
+	return;
+
+destroy_context:
+	nfscd_destroy((void *)ctx);
+	return;
+}
+
+static void
+destroy_nfsclient_context_pool(struct nfsclientd_context * ctx)
+{
+	int i, psize;
+	if(ctx == NULL)
+		return;
+
+	psize = ctx->mountopts.threadpool * ctx->mountopts.ctxpoolsize;
+	for(i = 0; i < psize; i++)
+		nfs_destroy(ctx->nfsctx_pool[i]);
+
+	return;
+}
+
+static void
+destroy_nfsclient_queues(struct nfsclientd_context * ctx)
+{
+
+	return;
+}
+
+static void
+destroy_nfsclient_thread_pool(struct nfsclientd_context * ctx)
+{
+	return;
 }
 
 void
 nfscd_destroy(void *userdata)
 {
-	fprintf(stderr, "Later..\n");
+	struct nfsclientd_context * ctx = (struct nfsclientd_context *)userdata;
+
+	assert(ctx != NULL);
+	destroy_nfsclient_thread_pool(ctx);
+	destroy_nfsclient_queues(ctx);
+	destroy_nfsclient_context_pool(ctx);
+
+	return;
 }
