@@ -20,7 +20,12 @@
  *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#ifndef __NFSCLIENTD_H__
+#define __NFSCLIENTD_H__
+
+#ifndef FUSE_USE_VERSION
 #define FUSE_USE_VERSION	26
+#endif
 
 #include <fuse_lowlevel.h>
 #include <nfsclient.h>
@@ -284,3 +289,5 @@ struct nfscd_request {
 
 extern struct nfscd_request * nfscd_next_request(struct nfsclientd_context * ctx);
 
+
+#endif

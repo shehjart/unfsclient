@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <nfs3actor.h>
 
 static int
 init_nfsclient_context_pool(struct nfsclientd_context * nfscd_ctx)
@@ -79,6 +80,10 @@ init_nfsclient_queues(struct nfsclientd_context * ctx)
 static int
 init_nfsclient_thread_pool(struct nfsclientd_context * ctx)
 {
+	pthread_t tid;
+
+	pthread_create(&tid, NULL, nfs3_actor, (void *)ctx);
+
 	return 0;
 }
 
@@ -157,8 +162,18 @@ nfscd_destroy(void *userdata)
 struct nfscd_request *
 nfscd_next_request(struct nfsclientd_context * ctx)
 {
+	struct nfscd_request * rq = NULL;
+	struct flist_head * elem = NULL;
+	assert(ctx != NULL);
 
-	return NULL;
+	sem_wait(&ctx->md_notify);
+	pthread_mutex_lock(&ctx->md_lock);
+	elem = flist_first(&ctx->md_rq);
+	rq = flist_entry(elem, struct nfscd_request, list);
+	flist_del(elem);
+	pthread_mutex_unlock(&ctx->md_lock);
+
+	return rq;
 }
 
 void
@@ -182,6 +197,3 @@ nfscd_lookup(fuse_req_t req, fuse_ino_t parent, const char * name)
 
 	return;
 }
-
-
-

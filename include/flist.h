@@ -144,4 +144,6 @@ static inline int flist_empty(const struct flist_head *head)
 	for (pos = (head)->next, n = pos->next; pos != (head); \
 		pos = n, n = pos->next)
 
+#define flist_first(head) (head)->next;
+
 #endif

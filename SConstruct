@@ -58,6 +58,6 @@ if not conf.CheckFunc('daemon'):
 
 nfsclientd_env = conf.Finish()
 
-nfsclientd_env.Program('nfsclientd', ['src/nfsclientd.c', 'src/nfscd_ops.c', libnfsclient])
+nfsclientd_env.Program('nfsclientd', ['src/nfsclientd.c', 'src/nfscd_ops.c', 'src/nfs3actor.c', libnfsclient])
 
 Default(None)
