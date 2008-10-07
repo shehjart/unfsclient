@@ -29,18 +29,27 @@
 #include <nfs3actor.h>
 #include <assert.h>
 
+#ifdef __NFSACTOR_DEBUG__
+#include <debug_print.h>
+#define nfsactlvl 1
+#endif
 
 void *
-nfs3_actor(void * arg)
+nfs3actor_thread(void * arg)
 {
 	struct nfsclientd_context * ctx = NULL;
 	struct nfscd_request * rq = NULL;
+	pthread_t tid;
 	
 	assert(arg != NULL);
+	tid = pthread_self();
 	ctx = (struct nfsclientd_context *)arg;
-	fprintf(stderr, "Sleeping on request..\n");
-	rq = nfscd_next_request(ctx);
+	debug_print(nfsactlvl, "[Actor 0x%x]: Waiting for request..\n", tid);
 
-	fprintf(stderr, "Got request..\n");
+	while(1) {
+		rq = nfscd_next_request(ctx);
+		debug_print(nfsactlvl, "[Actor 0x%x]: Got request..\n", tid);
+	}
+	
 	return NULL;
 }

@@ -37,6 +37,7 @@
 #include <nfsclientd.h>
 #include <assert.h>
 #include <netdb.h>
+#include <unistd.h>
 
 /* The global context use for nfscd_OPs. Only
  * available from this pointer after nfscd_init has been called by
@@ -200,15 +201,19 @@ main(int argc, char * argv[])
 		goto session_destroy_exit;
 	}
 
+#ifndef __NO_DAEMONIZE__
+	daemon(0, 1);
+#endif
 	fuse_session_add_chan(se, fusechan);
 	fuse_session_loop_mt(se);
 	fuse_opt_free_args(&fuseargs);
 
 session_destroy_exit:
 	fuse_session_destroy(se);
+	return 0;
 
 unmount_exit:
 	fuse_unmount(mountpoint, fusechan);
 
-	return 0;
+	return -1;
 }

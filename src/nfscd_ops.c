@@ -36,6 +36,11 @@
 #include <semaphore.h>
 #include <nfs3actor.h>
 
+#ifdef __NFSCLIENTD_DEBUG__
+#include <debug_print.h>
+#define nfscdlvl 1
+#endif
+
 static int
 init_nfsclient_context_pool(struct nfsclientd_context * nfscd_ctx)
 {
@@ -50,12 +55,13 @@ init_nfsclient_context_pool(struct nfsclientd_context * nfscd_ctx)
 		return -1;
 
 	/* Init all contexts... */
-	for(i = 0; i < DEFAULT_CTXPOOL_SIZE; i++) {
-		ctx = ctxpool[i];
+	for(i = 0; i < psize; i++) {
 		ctx = nfs_init(nfscd_ctx->mountopts.srvaddr, IPPROTO_TCP,
 				NFSC_CFL_NONBLOCKING);
 		if(ctx == NULL)
 			return -2;
+
+		ctxpool[i] = ctx;
 	}
 
 	nfscd_ctx->nfsctx_pool = ctxpool;
@@ -80,9 +86,18 @@ init_nfsclient_queues(struct nfsclientd_context * ctx)
 static int
 init_nfsclient_thread_pool(struct nfsclientd_context * ctx)
 {
+	assert(ctx != NULL);
 	pthread_t tid;
+	int i, tpool;
 
-	pthread_create(&tid, NULL, nfs3_actor, (void *)ctx);
+	tpool = ctx->mountopts.threadpool;
+	ctx->tids = (pthread_t *)malloc(sizeof(pthread_t) * tpool);
+	assert(ctx->tids != NULL);
+	for(i = 0; i < tpool; i++) {
+		pthread_create(&tid, NULL, nfs3actor_thread, (void *)ctx);
+		ctx->tids[i] = tid;
+		debug_print(nfscdlvl, "[nfsclientd]: Created actor: 0x%x\n", tid);
+	}
 
 	return 0;
 }
@@ -123,13 +138,17 @@ static void
 destroy_nfsclient_context_pool(struct nfsclientd_context * ctx)
 {
 	int i, psize;
+	nfs_ctx * nfsctx = NULL;
 	if(ctx == NULL)
 		return;
 
 	psize = ctx->mountopts.threadpool * ctx->mountopts.ctxpoolsize;
-	for(i = 0; i < psize; i++)
-		nfs_destroy(ctx->nfsctx_pool[i]);
-
+	for(i = 0; i < psize; i++) {
+		nfsctx = (ctx->nfsctx_pool[i]);
+		nfs_destroy(nfsctx);
+	}
+	
+	free(ctx->nfsctx_pool);
 	return;
 }
 
@@ -143,6 +162,17 @@ destroy_nfsclient_queues(struct nfsclientd_context * ctx)
 static void
 destroy_nfsclient_thread_pool(struct nfsclientd_context * ctx)
 {
+	int i;
+	assert(ctx != NULL);
+
+	for(i = 0; i < ctx->mountopts.threadpool; i++) {
+		debug_print(nfscdlvl, "[nfsclientd]: Canceling actor: 0x%x\n",
+				ctx->tids[i]);
+		pthread_cancel(ctx->tids[i]);
+		pthread_join(ctx->tids[i], NULL);
+	}
+
+	free(ctx->tids);
 	return;
 }
 

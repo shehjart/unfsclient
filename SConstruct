@@ -58,6 +58,21 @@ if not conf.CheckFunc('daemon'):
 
 nfsclientd_env = conf.Finish()
 
-nfsclientd_env.Program('nfsclientd', ['src/nfsclientd.c', 'src/nfscd_ops.c', 'src/nfs3actor.c', libnfsclient])
+nodaemonize = ARGUMENTS.get("nodaemonize", 0)
+if int(nodaemonize):
+	nfsclientd_env.Append(CCFLAGS = '-D__NO_DAEMONIZE__')
+
+nfsclientd_debug = ARGUMENTS.get('nfsclientd_debug', 0)
+if int(nfsclientd_debug):
+	nfsclientd_env.Append(CCFLAGS = '-D__NFSCLIENTD_DEBUG__')
+	nfsclientd_env.Append(CCFLAGS = '-DDEBUG_PRINT')
+
+nfsactor_debug = ARGUMENTS.get('nfsactor_debug', 0)
+if int(nfsactor_debug):
+	nfsclientd_env.Append(CCFLAGS = '-D__NFSACTOR_DEBUG__')
+	nfsclientd_env.Append(CCFLAGS = '-DDEBUG_PRINT')
+
+nfsclientdsource = ['src/nfsclientd.c', 'src/nfscd_ops.c', 'src/nfs3actor.c', 'src/debug_print.c']
+nfsclientd_env.Program('nfsclientd', [nfsclientdsource, libnfsclient])
 
 Default(None)

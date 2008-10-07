@@ -75,7 +75,8 @@ struct nfsclientd_context {
 	pthread_mutex_t rw_lock;
 	struct flist_head rw_rq;
 
-	/* Protocol private state. */
+	/* Thread IDs. */
+	pthread_t * tids;
 };
 
 extern struct nfsclientd_context * nfscd_ctx;
