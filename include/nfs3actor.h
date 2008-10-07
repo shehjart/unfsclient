@@ -28,6 +28,6 @@
 #include <nfsclient.h>
 
 
-extern void * nfs3_actor(void * arg);
+extern void * nfs3actor_thread(void * arg);
 
 #endif
