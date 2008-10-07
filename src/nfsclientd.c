@@ -38,11 +38,16 @@
 #include <assert.h>
 #include <netdb.h>
 
+/* The global context use for nfscd_OPs. Only
+ * available from this pointer after nfscd_init has been called by
+ * FUSE.
+ */
+struct nfsclientd_context * nfscd_ctx = NULL;
 
 struct fuse_opt nfsclientd_fuseopts[] = {
 		{"--server=%s", offsetof(struct nfsclientd_opts, server), 0},
 		{"--remotedir=%s", offsetof(struct nfsclientd_opts, remotedir), 0},
-		{"--ctxpoolsize=%d", offsetof(struct nfsclientd_opts, ctxpoolsize),
+		{"--ctxpool=%d", offsetof(struct nfsclientd_opts, ctxpoolsize),
 			0},
 		{"--threadpool=%d", offsetof(struct nfsclientd_opts, threadpool),
 			0},
@@ -56,7 +61,7 @@ usage()
 	printf("Options\n");
 	printf("\t--server=<server>\n");
 	printf("\t--remotedir=<server_exported_directory>\n");
-	printf("\t--ctxpoolsize=<ctx_pool_size>\n");
+	printf("\t--ctxpool=<ctx_pool_size>\n");
 	printf("\t--threadpool=<thread_pool_size>\n");
 
 	return;
@@ -65,8 +70,8 @@ usage()
 static struct fuse_lowlevel_ops nfsclientd_ops = {
 	.init		= nfscd_init,
 	.destroy	= nfscd_destroy,
-/*
 	.lookup		= nfscd_lookup,
+/*
 	.forget		= nfscd_forget,
 	.getattr	= nfscd_getattr,
 	.setattr	= nfscd_setattr,

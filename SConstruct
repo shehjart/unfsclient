@@ -40,6 +40,14 @@ if not conf.CheckLib('fuse'):
 	print '\tlibfuse not found.'
 	Exit(-1)
 
+if not conf.CheckLib('pthread'):
+	print '\tlibpthread not found.'
+	Exit(-1)
+
+if not conf.CheckCHeader('pthread.h'):
+	print '\tpthread.h not found.'
+	Exit(-1)
+
 if not conf.CheckCHeader('fuse_lowlevel.h'):
 	print '\tfuse_lowlevel.h not found.'
 	Exit(-1)

@@ -32,6 +32,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
+#include <semaphore.h>
 
 static int
 init_nfsclient_context_pool(struct nfsclientd_context * nfscd_ctx)
@@ -63,9 +65,14 @@ static int
 init_nfsclient_queues(struct nfsclientd_context * ctx)
 {
 	assert(ctx != NULL);
+	pthread_mutex_init(&ctx->md_lock, NULL);
 	INIT_FLIST_HEAD(&ctx->md_rq);
+
+	pthread_mutex_init(&ctx->rw_lock, NULL);
 	INIT_FLIST_HEAD(&ctx->rw_rq);
 
+	sem_init(&ctx->md_notify, 0, 0);
+	sem_init(&ctx->rw_notify, 0, 0);
 	return 0;
 }
 
@@ -99,6 +106,7 @@ nfscd_init(void *userdata, struct fuse_conn_info *conn)
 		goto destroy_context;
 	}
 
+	nfscd_ctx = ctx;
 	return;
 
 destroy_context:
@@ -145,3 +153,35 @@ nfscd_destroy(void *userdata)
 
 	return;
 }
+
+struct nfscd_request *
+nfscd_next_request(struct nfsclientd_context * ctx)
+{
+
+	return NULL;
+}
+
+void
+nfscd_lookup(fuse_req_t req, fuse_ino_t parent, const char * name)
+{
+	struct nfscd_request * rq = NULL;
+	assert(req != NULL && name != NULL);
+
+	rq = (struct nfscd_request *)malloc(sizeof(struct nfscd_request));
+	assert(rq != NULL);
+
+	rq->fuserq = req;
+	rq->args_u.lookupargs.parent = parent;
+	rq->args_u.lookupargs.name = strdup(name);
+	INIT_FLIST_HEAD(&rq->list);
+
+	pthread_mutex_lock(&nfscd_ctx->md_lock);
+	flist_add_tail(&rq->list, &nfscd_ctx->md_rq);
+	sem_post(&nfscd_ctx->md_notify);
+	pthread_mutex_unlock(&nfscd_ctx->md_lock);
+
+	return;
+}
+
+
+
