@@ -49,6 +49,13 @@ struct nfsclientd_opts {
 	int threadpool;
 };
 
+struct protocol_actor_ops {
+	int (*init_actor)(void);	/* Return 0 on success, others on failure */
+	void * (*request_actor)(void *);	/* Started as pthread. */
+	void (*destroy_actor)(void);	/* De-init actor state. */
+};
+
+
 struct nfsclientd_context {
 
 	/* The libnfsclient context pool. */
@@ -77,6 +84,8 @@ struct nfsclientd_context {
 
 	/* Thread IDs. */
 	pthread_t * tids;
+
+	struct protocol_actor_ops * actor;
 };
 
 extern struct nfsclientd_context * nfscd_ctx;
@@ -256,9 +265,50 @@ struct nfscd_fuse_create_args {
 };
 typedef struct nfscd_fuse_create_args nfcreate_args;
 
+/* Swiped from fuse/include/fuse_kernel.h from fuse sources. */
+enum fuse_opcode {
+        FUSE_LOOKUP        = 1,
+        FUSE_FORGET        = 2,  /* no reply */
+        FUSE_GETATTR       = 3,
+        FUSE_SETATTR       = 4,
+        FUSE_READLINK      = 5,
+        FUSE_SYMLINK       = 6,
+        FUSE_MKNOD         = 8,
+        FUSE_MKDIR         = 9,
+        FUSE_UNLINK        = 10,
+        FUSE_RMDIR         = 11,
+        FUSE_RENAME        = 12,
+        FUSE_LINK          = 13,
+        FUSE_OPEN          = 14,
+        FUSE_READ          = 15,
+        FUSE_WRITE         = 16,
+        FUSE_STATFS        = 17,
+        FUSE_RELEASE       = 18,
+        FUSE_FSYNC         = 20,
+        FUSE_SETXATTR      = 21,
+        FUSE_GETXATTR      = 22,
+        FUSE_LISTXATTR     = 23,
+        FUSE_REMOVEXATTR   = 24,
+        FUSE_FLUSH         = 25,
+        FUSE_INIT          = 26,
+        FUSE_OPENDIR       = 27,
+        FUSE_READDIR       = 28,
+        FUSE_RELEASEDIR    = 29,
+        FUSE_FSYNCDIR      = 30,
+        FUSE_GETLK         = 31,
+        FUSE_SETLK         = 32,
+        FUSE_SETLKW        = 33,
+        FUSE_ACCESS        = 34,
+        FUSE_CREATE        = 35,
+        FUSE_INTERRUPT     = 36,
+        FUSE_BMAP          = 37,
+        FUSE_DESTROY       = 38,
+};
+
 struct nfscd_request {
 	struct flist_head list;
 	fuse_req_t fuserq;
+	enum fuse_opcode request;
 
 	union {
 		nflookup_args lookupargs;
@@ -287,8 +337,7 @@ struct nfscd_request {
 	} args_u;
 };
 
+extern struct nfscd_request * nfscd_dequeue_metadata_request(struct nfsclientd_context * ctx);
 
-extern struct nfscd_request * nfscd_next_request(struct nfsclientd_context * ctx);
-
-
+extern struct nfscd_request * nfscd_dequeue_data_request(struct nfsclientd_context * ctx);
 #endif

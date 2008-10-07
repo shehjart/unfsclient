@@ -34,7 +34,6 @@
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <nfs3actor.h>
 
 #ifdef __NFSCLIENTD_DEBUG__
 #include <debug_print.h>
@@ -89,12 +88,19 @@ init_nfsclient_thread_pool(struct nfsclientd_context * ctx)
 	assert(ctx != NULL);
 	pthread_t tid;
 	int i, tpool;
+	int (*init_actor)(void);
+	void * (*request_actor)(void *);
 
 	tpool = ctx->mountopts.threadpool;
 	ctx->tids = (pthread_t *)malloc(sizeof(pthread_t) * tpool);
 	assert(ctx->tids != NULL);
+	
+	init_actor = ctx->actor->init_actor;
+	request_actor = ctx->actor->request_actor;
+
+	(*init_actor)();
 	for(i = 0; i < tpool; i++) {
-		pthread_create(&tid, NULL, nfs3actor_thread, (void *)ctx);
+		pthread_create(&tid, NULL, request_actor, (void *)ctx);
 		ctx->tids[i] = tid;
 		debug_print(nfscdlvl, "[nfsclientd]: Created actor: 0x%x\n", tid);
 	}
@@ -190,7 +196,7 @@ nfscd_destroy(void *userdata)
 }
 
 struct nfscd_request *
-nfscd_next_request(struct nfsclientd_context * ctx)
+nfscd_dequeue_metadata_request(struct nfsclientd_context * ctx)
 {
 	struct nfscd_request * rq = NULL;
 	struct flist_head * elem = NULL;
@@ -206,11 +212,60 @@ nfscd_next_request(struct nfsclientd_context * ctx)
 	return rq;
 }
 
+
+struct nfscd_request *
+nfscd_dequeue_data_request(struct nfsclientd_context * ctx)
+{
+	struct nfscd_request * rq = NULL;
+	struct flist_head * elem = NULL;
+	assert(ctx != NULL);
+
+	sem_wait(&ctx->rw_notify);
+	pthread_mutex_lock(&ctx->rw_lock);
+	elem = flist_first(&ctx->rw_rq);
+	rq = flist_entry(elem, struct nfscd_request, list);
+	flist_del(elem);
+	pthread_mutex_unlock(&ctx->rw_lock);
+
+	return rq;
+}
+
+
+void
+nfscd_enqueue_metadata_request(struct nfsclientd_context * ctx,
+		struct nfscd_request * rq)
+{
+	assert(rq != NULL && ctx != NULL);
+	
+	INIT_FLIST_HEAD(&rq->list);
+
+	pthread_mutex_lock(&ctx->md_lock);
+	flist_add_tail(&rq->list, &ctx->md_rq);
+	sem_post(&ctx->md_notify);
+	pthread_mutex_unlock(&ctx->md_lock);
+}
+
+
+void
+nfscd_enqueue_data_request(struct nfsclientd_context * ctx, 
+		struct nfscd_request * rq)
+{
+	assert(rq != NULL && ctx != NULL);
+	
+	INIT_FLIST_HEAD(&rq->list);
+
+	pthread_mutex_lock(&ctx->rw_lock);
+	flist_add_tail(&rq->list, &ctx->rw_rq);
+	sem_post(&ctx->rw_notify);
+	pthread_mutex_unlock(&ctx->rw_lock);
+}
+
+
 void
 nfscd_lookup(fuse_req_t req, fuse_ino_t parent, const char * name)
 {
 	struct nfscd_request * rq = NULL;
-	assert(req != NULL && name != NULL);
+	assert(req != NULL && name != NULL && nfscd_ctx != NULL);
 
 	rq = (struct nfscd_request *)malloc(sizeof(struct nfscd_request));
 	assert(rq != NULL);
@@ -218,12 +273,8 @@ nfscd_lookup(fuse_req_t req, fuse_ino_t parent, const char * name)
 	rq->fuserq = req;
 	rq->args_u.lookupargs.parent = parent;
 	rq->args_u.lookupargs.name = strdup(name);
-	INIT_FLIST_HEAD(&rq->list);
+	rq->request = FUSE_LOOKUP;
 
-	pthread_mutex_lock(&nfscd_ctx->md_lock);
-	flist_add_tail(&rq->list, &nfscd_ctx->md_rq);
-	sem_post(&nfscd_ctx->md_notify);
-	pthread_mutex_unlock(&nfscd_ctx->md_lock);
-
+	nfscd_enqueue_metadata_request(nfscd_ctx, rq);
 	return;
 }

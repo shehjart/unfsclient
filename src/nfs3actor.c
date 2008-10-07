@@ -34,8 +34,9 @@
 #define nfsactlvl 1
 #endif
 
+
 void *
-nfs3actor_thread(void * arg)
+nfs3_request_actor(void * arg)
 {
 	struct nfsclientd_context * ctx = NULL;
 	struct nfscd_request * rq = NULL;
@@ -47,9 +48,32 @@ nfs3actor_thread(void * arg)
 	debug_print(nfsactlvl, "[Actor 0x%x]: Waiting for request..\n", tid);
 
 	while(1) {
-		rq = nfscd_next_request(ctx);
+		rq = nfscd_dequeue_metadata_request(ctx);
 		debug_print(nfsactlvl, "[Actor 0x%x]: Got request..\n", tid);
+
+
+
+
 	}
-	
+
 	return NULL;
 }
+
+int
+nfs3_actor_init()
+{
+
+	return 0;
+}
+
+void
+nfs3_actor_destroy()
+{
+	return;
+}
+
+struct protocol_actor_ops nfs3_protocol_actor = {
+	.init_actor = nfs3_actor_init,
+	.request_actor = nfs3_request_actor,
+	.destroy_actor = nfs3_actor_destroy,
+};

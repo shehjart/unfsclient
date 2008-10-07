@@ -27,7 +27,7 @@
 #include <nfsclientd.h>
 #include <nfsclient.h>
 
+extern struct protocol_actor_ops nfs3_protocol_actor; 
 
-extern void * nfs3actor_thread(void * arg);
 
 #endif

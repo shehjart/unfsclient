@@ -38,6 +38,7 @@
 #include <assert.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <nfs3actor.h>
 
 /* The global context use for nfscd_OPs. Only
  * available from this pointer after nfscd_init has been called by
@@ -120,6 +121,11 @@ init_nfsclientd_context(struct nfsclientd_opts opts)
 	ctx->mountopts.ctxpoolsize = opts.ctxpoolsize;
 	ctx->mountopts.threadpool = opts.threadpool;
 
+	/* For now we support only NFSv3, so statically assign the
+	 * actor function pointers.
+	 */
+	ctx->actor = &nfs3_protocol_actor;
+
 	if((opts.ctxpoolsize <= 0) || (opts.ctxpoolsize > MAX_CTXPOOL_SIZE)) {
 		fprintf(stderr,"nfsclientd: Context pool must be between 1-%d\n",
 				MAX_CTXPOOL_SIZE);
@@ -146,7 +152,7 @@ main(int argc, char * argv[])
 	struct nfsclientd_context * nfscd_ctx = NULL;
 	struct addrinfo *srv_addr, hints;
 	int err;
-	
+	fprintf(stderr, "%d\n", FUSE_LOOKUP);
 	options.server = options.remotedir = NULL;
 	options.ctxpoolsize = DEFAULT_CTXPOOL_SIZE;
 	options.threadpool = DEFAULT_THREADPOOL_SIZE;
