@@ -42,7 +42,7 @@
 
 /* The global context use for nfscd_OPs. Only
  * available from this pointer after nfscd_init has been called by
- * FUSE.
+* FUSE.
  */
 struct nfsclientd_context * nfscd_ctx = NULL;
 

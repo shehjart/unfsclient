@@ -40,31 +40,30 @@
 #define nfscdlvl 1
 #endif
 
-static int
-init_nfsclient_context_pool(struct nfsclientd_context * nfscd_ctx)
+nfs_ctx **
+init_per_actor_context_pool(struct nfsclientd_context * nfscd_ctx)
 {
 	int i;
 	nfs_ctx **ctxpool, *ctx;
 	int psize;
 
 	assert(nfscd_ctx != NULL);
-	psize = nfscd_ctx->mountopts.threadpool * nfscd_ctx->mountopts.ctxpoolsize;
+	psize = nfscd_ctx->mountopts.ctxpoolsize;
 	ctxpool = (nfs_ctx **)malloc(sizeof(nfs_ctx *) * psize);
 	if(ctxpool == NULL)
-		return -1;
+		return NULL;
 
 	/* Init all contexts... */
 	for(i = 0; i < psize; i++) {
 		ctx = nfs_init(nfscd_ctx->mountopts.srvaddr, IPPROTO_TCP,
 				NFSC_CFL_NONBLOCKING);
 		if(ctx == NULL)
-			return -2;
+			return NULL;
 
 		ctxpool[i] = ctx;
 	}
 
-	nfscd_ctx->nfsctx_pool = ctxpool;
-	return 0;
+	return ctxpool;
 }
 
 static int
@@ -116,11 +115,6 @@ nfscd_init(void *userdata, struct fuse_conn_info *conn)
 	assert(userdata != NULL);
 	ctx = (struct nfsclientd_context *)userdata;
 
-	if((init_nfsclient_context_pool(ctx)) < 0) {
-		fprintf(stderr, "nfsclientd: Could not init context pool.\n");
-		exit(-1);
-	}
-
 	if((init_nfsclient_queues(ctx)) < 0) {
 		fprintf(stderr, "nfsclientd: Could not init request queues.\n");
 		goto destroy_context;
@@ -140,21 +134,20 @@ destroy_context:
 	return;
 }
 
-static void
-destroy_nfsclient_context_pool(struct nfsclientd_context * ctx)
+void
+destroy_per_actor_context_pool(struct nfsclientd_context * ctx, nfs_ctx ** ctxpool)
 {
 	int i, psize;
 	nfs_ctx * nfsctx = NULL;
-	if(ctx == NULL)
-		return;
+	assert(ctx != NULL && ctxpool != NULL);
 
-	psize = ctx->mountopts.threadpool * ctx->mountopts.ctxpoolsize;
+	psize = ctx->mountopts.ctxpoolsize;
 	for(i = 0; i < psize; i++) {
-		nfsctx = (ctx->nfsctx_pool[i]);
+		nfsctx = ctxpool[i];
 		nfs_destroy(nfsctx);
 	}
 	
-	free(ctx->nfsctx_pool);
+	free(ctxpool);
 	return;
 }
 
@@ -190,7 +183,6 @@ nfscd_destroy(void *userdata)
 	assert(ctx != NULL);
 	destroy_nfsclient_thread_pool(ctx);
 	destroy_nfsclient_queues(ctx);
-	destroy_nfsclient_context_pool(ctx);
 
 	return;
 }
@@ -274,6 +266,7 @@ nfscd_lookup(fuse_req_t req, fuse_ino_t parent, const char * name)
 	rq->args_u.lookupargs.parent = parent;
 	rq->args_u.lookupargs.name = strdup(name);
 	rq->request = FUSE_LOOKUP;
+	rq->actordata = NULL;
 
 	nfscd_enqueue_metadata_request(nfscd_ctx, rq);
 	return;

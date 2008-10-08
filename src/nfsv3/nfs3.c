@@ -31,6 +31,8 @@
 #include <sys/socket.h>
 #include <netinet/tcp.h>
 #include <errno.h>
+#include <malloc.h>
+#include <assert.h>
 
 const char nfsv3_proc_vals[22][15]= {
         "NULL" ,
@@ -109,6 +111,55 @@ nfsstat3_strerror(int stat)
 	}
 
 	return nfs3stat_str_tbl[i].errstr;
+}
+
+struct nfs3_errtbl {
+	nfsstat3 stat;
+	int syserr;
+};
+
+struct nfs3_errtbl nfs3errtbl[] = {
+        { NFS3_OK,              0               },
+        { NFS3ERR_PERM,         EPERM           },
+        { NFS3ERR_NOENT,        ENOENT          },
+        { NFS3ERR_IO,           EIO             },
+        { NFS3ERR_NXIO,         ENXIO           },
+        { NFS3ERR_ACCES,        EACCES          },
+        { NFS3ERR_EXIST,        EEXIST          },
+        { NFS3ERR_XDEV,         EXDEV           },
+        { NFS3ERR_NODEV,        ENODEV          },
+        { NFS3ERR_NOTDIR,       ENOTDIR         },
+        { NFS3ERR_ISDIR,        EISDIR          },
+        { NFS3ERR_INVAL,        EINVAL          },
+        { NFS3ERR_FBIG,         EFBIG           },
+        { NFS3ERR_NOSPC,        ENOSPC          },
+        { NFS3ERR_ROFS,         EROFS           },
+        { NFS3ERR_MLINK,        EMLINK          },
+        { NFS3ERR_NAMETOOLONG,  ENAMETOOLONG    },
+        { NFS3ERR_NOTEMPTY,     ENOTEMPTY       },
+        { NFS3ERR_DQUOT,        EDQUOT          },
+        { NFS3ERR_STALE,        ESTALE          },
+#if 0
+	{ NFS3ERR_BADHANDLE,    EBADHANDLE      },
+        { NFS3ERR_BAD_COOKIE,   EBADCOOKIE      },
+        { NFS3ERR_NOTSUPP,      ENOTSUPP        },
+        { NFS3ERR_TOOSMALL,     ETOOSMALL       },
+        { NFS3ERR_SERVERFAULT,  ESERVERFAULT    },
+        { NFS3ERR_BADTYPE,      EBADTYPE        },
+#endif
+        { -1,                   EIO             },
+};
+
+int
+nfsstat3_to_errno(int stat)
+{
+        int i;
+        for (i = 0; nfs3errtbl[i].stat != -1; i++) {
+                if (nfs3errtbl[i].stat == stat)
+                        return (int)nfs3errtbl[i].syserr;
+        }
+
+	return EIO;
 }
 
 
@@ -2085,4 +2136,21 @@ free_COMMIT3args(void *msg)
 }
 
 
+fhandle3 *
+fhandle3_dup(fhandle3 * fh, fhandle3 * newfh)
+{
+	if(fh == NULL)
+		return NULL;
 
+	if(newfh == NULL)
+		newfh = (fhandle3 *)malloc(sizeof(fhandle3));
+
+	assert(newfh != NULL);
+	fhandle3_fhlen(newfh) = fhandle3_fhlen(fh);
+	fhandle3_fh(newfh) = (char *)malloc(sizeof(char) * (fhandle3_fhlen(newfh)));
+	assert(fhandle3_fh(newfh) != NULL);
+
+	memcpy(fhandle3_fh(newfh), fhandle3_fh(fh), fhandle3_fhlen(newfh));
+
+	return newfh;
+}

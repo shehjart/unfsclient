@@ -107,6 +107,8 @@ enum nfsstat3 {
 };
 typedef enum nfsstat3 nfsstat3;
 
+
+
 enum ftype3 {
 	NF3REG = 1,
 	NF3DIR = 2,
@@ -131,6 +133,8 @@ struct nfs_fh3 {
 	} data;
 };
 typedef struct nfs_fh3 nfs_fh3;
+#define nfs_fh3_fh(fh) (fh)->data.data_val
+#define nfs_fh3_fhlen(fh) (fh)->data.data_len
 
 struct nfstime3 {
 	uint32 seconds;
@@ -319,6 +323,21 @@ struct LOOKUP3args {
 	diropargs3 what;
 };
 typedef struct LOOKUP3args LOOKUP3args;
+
+#define set_LOOKUP3args_fname(la, fname) \
+	do {				\
+		la->what.name = fname;	\
+	} while(0);			\
+
+#define set_LOOKUP3args_dir_fhlen(la, flen)		\
+	do {						\
+		la->what.dir.data.data_len = flen;	\
+	} while(0);					\
+
+#define set_LOOKUP3args_dir_fh(la, fh)			\
+	do {						\
+		la->what.dir.data.data_val = fh;	\
+	} while(0);					\
 
 struct LOOKUP3resok {
 	nfs_fh3 object;
@@ -962,6 +981,11 @@ typedef struct {
 	char *fhandle3_val;
 } fhandle3;
 
+#define fhandle3_fhlen(fh) (fh)->fhandle3_len
+#define fhandle3_fh(fh) (fh)->fhandle3_val
+
+extern fhandle3 * fhandle3_dup(fhandle3 * fh, fhandle3 * newfh);
+
 typedef char *dirpath;
 
 typedef char *name;
@@ -997,6 +1021,10 @@ struct mountres3 {
 };
 typedef struct mountres3 mountres3;
 
+#define mnt3_fhandle3(res_ok) (&((res_ok)->mountres3_u.mountinfo.fhandle))
+#define mnt3_fhandle3_fh(res_ok) fhandle3_fh(mnt3_fhandle3((res_ok)))
+#define mnt3_fhandle3_fhlen(res_ok) fhandle3_fhlen(mnt3_fhandle3((res_ok)))
+
 typedef struct mountbody *mountlist;
 
 struct mountbody {
@@ -1022,6 +1050,14 @@ struct exportnode {
 	exports ex_next;
 };
 typedef struct exportnode exportnode;
+
+struct nfsreply {
+	nfsstat3 status;
+};
+
+#define nfs3_reply_status(ptr) ((struct nfsreply *)(ptr))->status
+#define mnt3_reply_status(ptr) (ptr)->fhs_status
+
 
 #define NFS_PROGRAM 100003
 #define NFS_V3 3
@@ -1408,4 +1444,6 @@ extern  bool_t xdr_groupnode (XDR *, groupnode*);
 extern  bool_t xdr_exports (XDR *, exports*);
 extern  bool_t xdr_exportnode (XDR *, exportnode*);
 
+extern char * nfsstat3_strerror(int stat);
+extern int nfsstat3_to_errno(int stat);
 #endif /* !_NFS3_H_RPCGEN */

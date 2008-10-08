@@ -58,9 +58,6 @@ struct protocol_actor_ops {
 
 struct nfsclientd_context {
 
-	/* The libnfsclient context pool. */
-	nfs_ctx ** nfsctx_pool;
-
 	/* The options and configurables */
 	struct nfsclientd_opts mountopts;
 
@@ -90,6 +87,10 @@ struct nfsclientd_context {
 
 extern struct nfsclientd_context * nfscd_ctx;
 
+extern nfs_ctx ** init_per_actor_context_pool(struct nfsclientd_context * nfscd_ctx);
+
+extern void destroy_per_actor_context_pool(struct nfsclientd_context * ctx,
+		nfs_ctx ** ctxpool);
 /* nfsclientd's FUSE operations. */
 extern void nfscd_init(void *userdata, struct fuse_conn_info *conn);
 extern void nfscd_destroy(void *userdata);
@@ -310,6 +311,12 @@ struct nfscd_request {
 	fuse_req_t fuserq;
 	enum fuse_opcode request;
 
+	/* Private state for nfs actor.
+	 * Not touched by the main loop.
+	 */
+	void * actordata;
+
+
 	union {
 		nflookup_args lookupargs;
 		nfforget_args forgetargs;
@@ -330,7 +337,7 @@ struct nfscd_request {
 		nfopendir_args opendirargs;
 		nfreaddir_args readdirargs;
 		nfreleasedir_args releasedirargs;
-		nffsyncdir_args fsyncdir_args;
+		nffsyncdir_args fsyncdirargs;
 		nfstatfs_args statfsargs;
 		nfaccess_args accessargs;
 		nfcreate_args createargs;
