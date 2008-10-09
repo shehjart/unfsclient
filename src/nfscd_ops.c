@@ -152,15 +152,16 @@ nfscd_actor_monitor(void * arg)
 			ast = flist_entry(iter, struct actor_status, list);
 			pthread_join(ast->tid, NULL);
 			flist_del(iter);
-			fprintf(stderr, "[nfsclientd] Actor exited: %s\n",
+			if(ast->exitstat > 0)
+				fprintf(stderr, "[nfsclientd] Actor exited: %s\n",
 					strerror(ast->exitstat));
 
 			/* If the thread exited due to a condition it
 			 * could not handle, restart it.
 			 */
-			if(ast->exitstat > 0) {
+			if(ast->exitstat < DEFAULT_EXIT_STATUS)
 				_nfscd_startup_actor(ctx);
-			}
+
 			free(ast);
 		}
 unlock_continue:

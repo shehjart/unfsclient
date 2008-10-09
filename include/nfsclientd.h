@@ -107,8 +107,10 @@ extern void destroy_per_actor_context_pool(struct nfsclientd_context * ctx,
 		nfs_ctx ** ctxpool);
 /* Call this when an actor thread exits, set the status to :
  * 	0, when exiting normally.
- * 	less than zero, when exiting due to error.
- * 	greater than zero, is reserved by nfsclientd for now.
+ * 	less than -1, when exiting due to error and want the actor
+ * 	thread re-started.
+ * 	greater than zero, to not restart but to print the
+ * 	errno string for this status number.
  * 
  * Also see the small note about 'status' argument where struct
  * actor_status is declared.
