@@ -56,6 +56,16 @@ struct protocol_actor_ops {
 };
 
 
+#define DEFAULT_EXIT_STATUS	-1
+struct actor_status {
+	struct flist_head list;
+	pthread_t tid;
+	/* This error status should come to mean something to the
+	 * client application in the future.
+	 */
+	int exitstat;
+};
+
 struct nfsclientd_context {
 
 	/* The options and configurables */
@@ -77,10 +87,14 @@ struct nfsclientd_context {
 
 	/* Read write request queue */
 	pthread_mutex_t rw_lock;
+	sem_t actor_exit_notify;
 	struct flist_head rw_rq;
 
-	/* Thread IDs. */
-	pthread_t * tids;
+	/* List of actors and their exit status. */
+	pthread_mutex_t ast_lock;
+	int threadcount;
+	struct flist_head actor_threads;
+	pthread_t monitor_tid;
 
 	struct protocol_actor_ops * actor;
 };
@@ -91,6 +105,17 @@ extern nfs_ctx ** init_per_actor_context_pool(struct nfsclientd_context * nfscd_
 
 extern void destroy_per_actor_context_pool(struct nfsclientd_context * ctx,
 		nfs_ctx ** ctxpool);
+/* Call this when an actor thread exits, set the status to :
+ * 	0, when exiting normally.
+ * 	less than zero, when exiting due to error.
+ * 	greater than zero, is reserved by nfsclientd for now.
+ * 
+ * Also see the small note about 'status' argument where struct
+ * actor_status is declared.
+ * */
+extern void nfscd_notify_actor_exit(struct nfsclientd_context * ctx, pthread_t tid,
+		int status);
+
 /* nfsclientd's FUSE operations. */
 extern void nfscd_init(void *userdata, struct fuse_conn_info *conn);
 extern void nfscd_destroy(void *userdata);

@@ -34,9 +34,10 @@
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <flist.h>
+#include <debug_print.h>
 
 #ifdef __NFSCLIENTD_DEBUG__
-#include <debug_print.h>
 #define nfscdlvl 1
 #endif
 
@@ -82,26 +83,116 @@ init_nfsclient_queues(struct nfsclientd_context * ctx)
 }
 
 static int
+__nfscd_startup_actor(struct nfsclientd_context * ctx,
+		void * (*request_actor)(void *))
+{
+	pthread_t tid;
+	struct actor_status * ast = NULL;
+	
+	pthread_create(&tid, NULL, request_actor, (void *)ctx);
+
+	ast = (struct actor_status *)malloc(sizeof(struct actor_status));
+	assert(ast != NULL);
+	ast->tid = tid;
+	ast->exitstat = DEFAULT_EXIT_STATUS;
+	++ctx->threadcount;
+	flist_add_tail(&ast->list, &ctx->actor_threads);
+	debug_print(nfscdlvl, "[nfsclientd]: Created actor: 0x%x\n", tid);
+
+	return -1;
+}
+
+
+static int
+_nfscd_startup_actor(struct nfsclientd_context * ctx)
+{
+	void * (*request_actor)(void *);
+	
+	request_actor = ctx->actor->request_actor;
+	assert(request_actor != NULL);
+	__nfscd_startup_actor(ctx, request_actor);
+
+	return 0;
+}
+
+
+
+static int
+nfscd_startup_actor(struct nfsclientd_context * ctx)
+{
+
+	assert(ctx != NULL);
+
+	pthread_mutex_lock(&ctx->ast_lock);
+	_nfscd_startup_actor(ctx);
+	pthread_mutex_unlock(&ctx->ast_lock);
+	return 0;
+}
+
+static void *
+nfscd_actor_monitor(void * arg)
+{
+	struct nfsclientd_context * ctx = NULL;
+	struct flist_head *iter, *tmp;
+	struct actor_status * ast = NULL;
+	iter = tmp = NULL;
+
+	assert(arg != NULL);
+	ctx = (struct nfsclientd_context *)arg;
+	/* Might want to turn this into a timed sem
+	 * so we can check thread status at regular intervals.
+	 */
+	while(1) {
+		sem_wait(&ctx->actor_exit_notify);
+		pthread_mutex_lock(&ctx->ast_lock);
+		if(flist_empty(&ctx->actor_threads))
+			goto unlock_continue;
+
+		flist_for_each_safe(iter, tmp, &ctx->actor_threads) {
+			ast = flist_entry(iter, struct actor_status, list);
+			pthread_join(ast->tid, NULL);
+			flist_del(iter);
+			fprintf(stderr, "[nfsclientd] Actor exited: %s\n",
+					strerror(ast->exitstat));
+
+			/* If the thread exited due to a condition it
+			 * could not handle, restart it.
+			 */
+			if(ast->exitstat > 0) {
+				_nfscd_startup_actor(ctx);
+			}
+			free(ast);
+		}
+unlock_continue:
+		pthread_mutex_unlock(&ctx->ast_lock);
+	}
+
+	return NULL;
+}
+
+
+
+static int
 init_nfsclient_thread_pool(struct nfsclientd_context * ctx)
 {
-	assert(ctx != NULL);
-	pthread_t tid;
 	int i, tpool;
 	int (*init_actor)(void);
-	void * (*request_actor)(void *);
 
+	assert(ctx != NULL);
 	tpool = ctx->mountopts.threadpool;
-	ctx->tids = (pthread_t *)malloc(sizeof(pthread_t) * tpool);
-	assert(ctx->tids != NULL);
 	
+	pthread_mutex_init(&ctx->ast_lock, NULL);
+	sem_init(&ctx->actor_exit_notify, 0, 0);
+	INIT_FLIST_HEAD(&ctx->actor_threads);
+	pthread_create(&ctx->monitor_tid, NULL, nfscd_actor_monitor, (void *)ctx);
+
 	init_actor = ctx->actor->init_actor;
-	request_actor = ctx->actor->request_actor;
+	ctx->threadcount = 0;
 
 	(*init_actor)();
 	for(i = 0; i < tpool; i++) {
-		pthread_create(&tid, NULL, request_actor, (void *)ctx);
-		ctx->tids[i] = tid;
-		debug_print(nfscdlvl, "[nfsclientd]: Created actor: 0x%x\n", tid);
+		if((nfscd_startup_actor(ctx)) < 0)
+			return -1;
 	}
 
 	return 0;
@@ -161,17 +252,30 @@ destroy_nfsclient_queues(struct nfsclientd_context * ctx)
 static void
 destroy_nfsclient_thread_pool(struct nfsclientd_context * ctx)
 {
-	int i;
-	assert(ctx != NULL);
+	struct flist_head *iter, *tmp;
+	struct actor_status * ast = NULL;
+	iter = tmp = NULL;
 
-	for(i = 0; i < ctx->mountopts.threadpool; i++) {
+	assert(ctx != NULL);
+	pthread_mutex_lock(&ctx->ast_lock);
+	sem_destroy(&ctx->actor_exit_notify);
+	if(flist_empty(&ctx->actor_threads))
+		goto lock_destroy;
+
+	flist_for_each_safe(iter, tmp, &ctx->actor_threads) {
+		ast = flist_entry(iter, struct actor_status, list);
 		debug_print(nfscdlvl, "[nfsclientd]: Canceling actor: 0x%x\n",
-				ctx->tids[i]);
-		pthread_cancel(ctx->tids[i]);
-		pthread_join(ctx->tids[i], NULL);
+				ast->tid);
+		pthread_cancel(ast->tid);
+		pthread_join(ast->tid, NULL);
+		flist_del(iter);
+		free(ast);
 	}
 
-	free(ctx->tids);
+lock_destroy:
+	pthread_mutex_unlock(&ctx->ast_lock);
+	pthread_mutex_destroy(&ctx->ast_lock);
+
 	return;
 }
 
@@ -271,3 +375,26 @@ nfscd_lookup(fuse_req_t req, fuse_ino_t parent, const char * name)
 	nfscd_enqueue_metadata_request(nfscd_ctx, rq);
 	return;
 }
+
+
+void
+nfscd_notify_actor_exit(struct nfsclientd_context * ctx, pthread_t tid, int status)
+{
+	struct actor_status * ast = NULL;
+	struct flist_head *iter, *tmp;
+	iter = tmp = NULL;
+
+	assert(ctx != NULL);
+
+	pthread_mutex_lock(&ctx->ast_lock);
+	flist_for_each_safe(iter, tmp, &ctx->actor_threads) {
+		ast = flist_entry(iter, struct actor_status, list);
+		if(ast->tid != tid)
+			continue;
+
+		ast->exitstat = status;
+	}
+	sem_post(&ctx->actor_exit_notify);
+	pthread_mutex_unlock(&ctx->ast_lock);
+}
+

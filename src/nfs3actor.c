@@ -29,9 +29,9 @@
 #include <nfs3actor.h>
 #include <assert.h>
 #include <errno.h>
+#include <debug_print.h>
 
 #ifdef __NFSACTOR_DEBUG__
-#include <debug_print.h>
 #define nfsactlvl 1
 #endif
 
@@ -74,6 +74,7 @@ nfs3_actor_mount_remotedir(struct nfs3_actor_state * as)
 	fhandle3 rootfh;
 	nfs_ctx * mntctx = NULL;
 	char * remotedir = NULL;
+	int stat;
 
 	assert(as != NULL);
 	mntctx = as->ctxpool[0];
@@ -81,8 +82,11 @@ nfs3_actor_mount_remotedir(struct nfs3_actor_state * as)
 	remotedir = as->nfscd_ctx->mountopts.remotedir;
 
 	fhandle3_fh(&rootfh) = NULL;
-	mount3_mnt((dirpath *)&remotedir, mntctx, nfs3_mount_cb, &rootfh,
+	stat = mount3_mnt((dirpath *)&remotedir, mntctx, nfs3_mount_cb, &rootfh,
 			RPC_BLOCKING_WAIT);
+
+	if(stat != RPC_SUCCESS)
+		return -1;
 
 	if(fhandle3_fh(&rootfh) == NULL)
 		return -1;
@@ -130,34 +134,32 @@ nfs3_lookup_cb(void *msg, int len, void *priv)
 	}
 }
 
-struct LOOKUP3args *
-fuse_to_nfs3_lookup_args(struct nfs3_actor_state * as, nflookup_args * fargs)
+static void
+fuse_to_nfs3_lookup_args(struct nfs3_actor_state * as, nflookup_args * fargs,
+		LOOKUP3args * la)
 {
-	LOOKUP3args * la = NULL;
-	assert(fargs);
+	assert(fargs!= NULL && la != NULL);
 
-	la = (LOOKUP3args *)malloc(sizeof(LOOKUP3args));
-	assert(la != NULL);
-
+	debug_print(nfsactlvl, "[Actor 0x%x] lookup: %s\n", as->tid, fargs->name);
 	set_LOOKUP3args_fname(la, fargs->name);
 	set_LOOKUP3args_dir_fhlen(la, fhandle3_fhlen(&as->rootfh));
 	set_LOOKUP3args_dir_fh(la, fhandle3_fh(&as->rootfh));
 
-	return la;
+	return;
 }
 
 static void
 nfs3_lookup_actor(struct nfs3_actor_state * as, struct nfscd_request * rq)
 {
 	nfs_ctx * nfsctx = NULL;
-	LOOKUP3args * la = NULL;
+	LOOKUP3args la;
 
 	assert(as != NULL && rq != NULL);
-	la = fuse_to_nfs3_lookup_args(as, &rq->args_u.lookupargs);
+	fuse_to_nfs3_lookup_args(as, &rq->args_u.lookupargs, &la);
 	nfsctx = as->ctxpool[0];
 	rq->actordata = (void *)as;
 
-	nfs3_lookup(la, nfsctx, nfs3_lookup_cb, rq, RPC_BLOCKING_WAIT);
+	nfs3_lookup(&la, nfsctx, nfs3_lookup_cb, rq, RPC_BLOCKING_WAIT);
 
 	return;
 }
@@ -193,8 +195,10 @@ nfs3_request_actor(void * arg)
 	assert(arg != NULL);
 	tid = pthread_self();
 	ctx = (struct nfsclientd_context *)arg;
-	if((init_nfs3_actor_thread_state(&as, ctx)) < 0)
+	if((init_nfs3_actor_thread_state(&as, ctx)) < 0) {
+		nfscd_notify_actor_exit(ctx, tid, errno);
 		return NULL;
+	}
 
 	debug_print(nfsactlvl, "[Actor 0x%x]: Waiting for request..\n", tid);
 	while(1) {
@@ -204,6 +208,7 @@ nfs3_request_actor(void * arg)
 	}
 
 	destroy_per_actor_context_pool(ctx, as.ctxpool);
+	nfscd_notify_actor_exit(ctx, tid, 0);
 	return NULL;
 }
 
