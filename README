@@ -9,7 +9,7 @@ higher scalability and performance than the in-kernel client stack.
 Most would disagree with this notion but to disprove such a notion is
 the goal of unfsclient project. It aims to achieve higher scalability
 and performance through intelligent, efficient and aggressive algorithms
-to beat the I/O bottleneck of being in the user-space. It also aims to
+to beat the I/O bottleneck of being in user-space. It also aims to
 be extensible and flexible to allow experimentation with a range of
 algorithms for data and meta-data caching, I/O and network connection
 management, locking and concurrency for file systems in user-space,
@@ -17,11 +17,40 @@ etc. One of the benefits of being in user-space is to allow
 experimentation with various types of policies, to that end,
 unfsclient will attempt to provide configurable subsystems.
 
-As of this writing, the work is not complete yet. The main components
-ready for testing are:
-1. Async RPC library.
-2. NFSv3 client operations library.
+The final design of unfsclient will be based on:
+a. Multiple threads
+Besides the configurable number of minimum NFS client threads 
+at startup, the nfsclientd will startup at least one new thread
+for each application that it observes performing file system operations on
+a NFS mount point. 
 
+b. Multiple contexts or connections
+Each thread will have a configurable number of connection through
+which it will interact with the NFS server. 
+
+The file system workload exerted by the client applications will be 
+distributed and parallelised over these threads and contexts. Over time, 
+the thread start-up algorithm will use the information about file system 
+load and file server response time to increase or decrease the thread
+count.
+
+c. Protocol independence
+unfsclient will support both NFSv3 and v4 by exploiting its extensible
+design. Each protocol implementor is allowed to define protocol actors
+which are recipients of NFS requests from nfsclientd. Actors in
+unfsclient terminology are nothing but individual threads that
+implement one particular protocols, for eg. NFSv3 actors will be a set
+of threads different from the NFSv4 actors.
+
+d. Separate data and meta-data queues
+Actors receive the file system requests from nfsclientd. Actually,
+these requests are separated into two different queues depending on
+the nature of the requests, whether they are file reads or writes, in
+which case the requests go into the data queue, or requests like
+lookup, getattr which go into the meta-data queue. The goal is to
+ensure that both, data and meta-data intensive workloads get serviced
+fairly. In time, the scheduling of the requests from these two queues
+will be based on pluggable algorithms.
 
 The project does not have a web page at this time so please consider
 these files and the sources as the first point of information.
